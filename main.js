@@ -5,22 +5,22 @@ var vscode = require('vscode');
 exports.activate = function() {
 	console.log('I am activated!');
 	
-	vscode.commands.registerCommand('dispatchType', function(args) {
+	vscode.commands.registerCommand('type', function(args) {
 		if (!vscode.window.activeTextEditor) {
 			return;
 		}
 		_inputHandler.type(args.text);
 	});
-	vscode.commands.registerCommand('dispatchReplacePreviousChar', function(args) {
+	vscode.commands.registerCommand('replacePreviousChar', function(args) {
 		if (!vscode.window.activeTextEditor) {
 			return;
 		}
 		_inputHandler.replacePrevChar(args.text, args.replaceCharCnt);
 	});
-	// vscode.commands.registerCommand('dispatchPaste', function(args) {
+	// vscode.commands.registerCommand('paste', function(args) {
 	// 	console.log('paste with: ', args.text, args.pasteOnNewLine);
 	// });
-	// vscode.commands.registerCommand('dispatchCut', function(args) {
+	// vscode.commands.registerCommand('cut', function(args) {
 	// 	console.log('cut (no args)');
 	// });
 };
@@ -38,18 +38,27 @@ function InputHandler() {
 		};
 	}
 }
+InputHandler.prototype._setMode = function(newMode) {
+	if (newMode !== this._currentMode) {
+		this._currentMode = newMode;
+		vscode.window.activeTextEditor.options = {
+			cursorStyle: this._currentMode.getCursorStyle()
+		};
+	}
+	_statusBar.text = this._currentMode.getStatusText();
+};
 /**
  * @param {string} text
  */
 InputHandler.prototype.type = function(text) {
-	this._currentMode = this._currentMode.type(text);
+	this._setMode(this._currentMode.type(text));
 };
 /**
  * @param {string} text
  * @param {number} replaceCharCnt
  */
 InputHandler.prototype.replacePrevChar = function(text, replaceCharCnt) {
-	this._currentMode = this._currentMode.replacePrevChar(text);
+	this._setMode(this._currentMode.replacePrevChar(text));
 };
 
 function NormalMode() {
@@ -58,7 +67,14 @@ function NormalMode() {
 }
 NormalMode.prototype.getCursorStyle = function() {
 	return vscode.TextEditorCursorStyle.Block;
-}
+};
+NormalMode.prototype.getStatusText = function() {
+	if (this._currentInput) {
+		return 'VIM:> -- NORMAL --';
+	} else {
+		return 'VIM:>' + this._currentInput;
+	}
+};
 /**
  * @param {string} text
  */
@@ -101,13 +117,12 @@ NormalMode.prototype._interpretInput = function() {
 			this._deleteCharUnderCursor();
 			clear = true;
 			break;
+		case 'i':
+			return new InsertMode();
 	}
 	
 	if (clear) {
 		this._currentInput = '';
-		_statusBar.text = 'VIM:> -- NORMAL --';
-	} else {
-		_statusBar.text = 'VIM:>' + this._currentInput;
 	}
 	
 	return this;
@@ -164,6 +179,34 @@ NormalMode.prototype._deleteCharUnderCursor = function() {
 };
 
 
+function InsertMode() {
+}
+InsertMode.prototype.getCursorStyle = function() {
+	return vscode.TextEditorCursorStyle.Line;
+};
+InsertMode.prototype.getStatusText = function() {
+	return 'VIM:> -- INSERT --';
+};
+/**
+ * @param {string} text
+ */
+InsertMode.prototype.type = function(text) {
+	vscode.commands.executeCommand('default:type', {
+		text: text
+	});
+	return this;
+};
+/**
+ * @param {string} text
+ * @param {number} replaceCharCnt
+ */
+InsertMode.prototype.replacePrevChar = function(text, replaceCharCnt) {
+	vscode.commands.executeCommand('default:replacePrevChar', {
+		text: text,
+		replaceCharCnt: replaceCharCnt
+	});
+	return this;
+};
 
 
 var _statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
