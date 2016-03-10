@@ -1,0 +1,12 @@
+{
+	"name": "vim-sample",
+	"publisher": "alexdima",
+	"version": "0.0.1",
+	"engines": {
+		"vscode": "^0.10.11"
+	},
+	"activationEvents": [
+		"*"
+	],
+	"main": "./main.js"
+}
