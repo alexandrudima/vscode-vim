@@ -28,79 +28,86 @@ exports.activate = function() {
 	// });
 };
 
+var NORMAL_MODE = 0, INSERT_MODE = 1;
+
 function InputHandler() {
-	this._setMode(new NormalMode());
+	this._setMode(NORMAL_MODE);
 	vscode.window.onDidChangeActiveTextEditor((textEditor) => {
 		textEditor.options = {
-			cursorStyle: this._currentMode.getCursorStyle()
+			cursorStyle: this.getCursorStyle()
 		};
 	});
 }
 InputHandler.prototype.goToNormalMode = function() {
-	if (this._currentMode instanceof NormalMode) {
+	if (this._currentMode === NORMAL_MODE) {
 		return;
 	}
-	this._setMode(new NormalMode());
+	this._setMode(NORMAL_MODE);
 };
 InputHandler.prototype._setMode = function(newMode) {
 	if (newMode !== this._currentMode) {
 		this._currentMode = newMode;
+		this._cursorDesiredCharacter = -1; // uninitialized
+		this._currentInput = '';
+
 		if (vscode.window.activeTextEditor) {
 			vscode.window.activeTextEditor.options = {
-				cursorStyle: this._currentMode.getCursorStyle()
+				cursorStyle: this.getCursorStyle()
 			};
 		}
 		
-		var inNormalMode = (this._currentMode instanceof NormalMode);
+		var inNormalMode = (this._currentMode === NORMAL_MODE);
 		vscode.commands.executeCommand('setContext', 'vim.inNormalMode', inNormalMode);
 	}
-	_statusBar.text = this._currentMode.getStatusText();
+	_statusBar.text = this.getStatusText();
 };
 /**
  * @param {string} text
  */
 InputHandler.prototype.type = function(text) {
-	this._setMode(this._currentMode.type(text));
+	if (this._currentMode === NORMAL_MODE) {
+		this._currentInput += text;
+		this._interpretNormalModeInput();
+	} else {
+		vscode.commands.executeCommand('default:type', {
+			text: text
+		});
+	}
+	_statusBar.text = this.getStatusText();
 };
 /**
  * @param {string} text
  * @param {number} replaceCharCnt
  */
 InputHandler.prototype.replacePrevChar = function(text, replaceCharCnt) {
-	this._setMode(this._currentMode.replacePrevChar(text));
-};
-
-function NormalMode() {
-	this._cursorDesiredCharacter = -1; // uninitialized
-	this._currentInput = '';
-}
-NormalMode.prototype.getCursorStyle = function() {
-	return vscode.TextEditorCursorStyle.Block;
-};
-NormalMode.prototype.getStatusText = function() {
-	if (this._currentInput) {
-		return 'VIM:>' + this._currentInput;
+	if (this._currentMode === NORMAL_MODE) {
+		console.log('TODO: default mode replacePrevChar: ', arguments);
 	} else {
-		return 'VIM:> -- NORMAL --';
+		vscode.commands.executeCommand('default:replacePrevChar', {
+			text: text,
+			replaceCharCnt: replaceCharCnt
+		});
 	}
 };
-/**
- * @param {string} text
- */
-NormalMode.prototype.type = function(text) {
-	this._currentInput += text;
-	return this._interpretInput();
-	
+InputHandler.prototype.getCursorStyle = function() {
+	if (this._currentMode === NORMAL_MODE) {
+		return vscode.TextEditorCursorStyle.Block;
+	} else {
+		return vscode.TextEditorCursorStyle.Line;
+	}
 };
-/**
- * @param {string} text
- * @param {number} replaceCharCnt
- */
-NormalMode.prototype.replacePrevChar = function(text, replaceCharCnt) {
-	console.log('default mode replacePrevChar: ', arguments);
-	return this;
+InputHandler.prototype.getStatusText = function() {
+	if (this._currentMode === NORMAL_MODE) {
+		if (this._currentInput) {
+			return 'VIM:>' + this._currentInput;
+		} else {
+			return 'VIM:> -- NORMAL --';
+		}
+	} else {
+		return 'VIM:> -- INSERT --';
+	}
 };
-NormalMode.prototype._interpretInput = function() {
+InputHandler.prototype._interpretNormalModeInput = function() {
 	
 	console.log('_interpretInput: ', this._currentInput);
 	
@@ -127,13 +134,16 @@ NormalMode.prototype._interpretInput = function() {
 			clear = true;
 			break;
 		case 'i':
-			return new InsertMode();
+			this._setMode(INSERT_MODE);
+			return;
 		case 'a':
 			this._cursorRight(true);
-			return new InsertMode();
+			this._setMode(INSERT_MODE);
+			return;
 		case 'A':
 			this._cursorEndOfLine(true);
-			return new InsertMode();
+			this._setMode(INSERT_MODE);
+			return;
 		case 'dw':
 			this._deleteToNextWordStart();
 			clear = true;
@@ -143,10 +153,8 @@ NormalMode.prototype._interpretInput = function() {
 	if (clear) {
 		this._currentInput = '';
 	}
-	
-	return this;
 };
-NormalMode.prototype._cursorLeft = function() {
+InputHandler.prototype._cursorLeft = function() {
 	var pos = activePosition();
 	var doc = activeDocument();
 	var line = pos.line;
@@ -156,7 +164,7 @@ NormalMode.prototype._cursorLeft = function() {
 		setPositionAndReveal(line, this._cursorDesiredCharacter);
 	}
 };
-NormalMode.prototype._cursorDown = function() {
+InputHandler.prototype._cursorDown = function() {
 	var pos = activePosition();
 	var doc = activeDocument();
 	var line = pos.line;
@@ -168,7 +176,7 @@ NormalMode.prototype._cursorDown = function() {
 		setPositionAndReveal(line, Math.min(this._cursorDesiredCharacter, doc.lineAt(line).text.length));
 	}
 };
-NormalMode.prototype._cursorUp = function() {
+InputHandler.prototype._cursorUp = function() {
 	var pos = activePosition();
 	var doc = activeDocument();
 	var line = pos.line;
@@ -180,7 +188,7 @@ NormalMode.prototype._cursorUp = function() {
 		setPositionAndReveal(line, Math.min(this._cursorDesiredCharacter, doc.lineAt(line).text.length));
 	}
 };
-NormalMode.prototype._cursorEndOfLine = function(allowLastPositionOnLine) {
+InputHandler.prototype._cursorEndOfLine = function(allowLastPositionOnLine) {
 	var pos = activePosition();
 	var doc = activeDocument();
 	var line = pos.line;
@@ -191,7 +199,7 @@ NormalMode.prototype._cursorEndOfLine = function(allowLastPositionOnLine) {
 		setPositionAndReveal(line, this._cursorDesiredCharacter);
 	}
 };
-NormalMode.prototype._cursorRight = function(allowLastPositionOnLine) {
+InputHandler.prototype._cursorRight = function(allowLastPositionOnLine) {
 	var pos = activePosition();
 	var doc = activeDocument();
 	var line = pos.line;
@@ -202,44 +210,16 @@ NormalMode.prototype._cursorRight = function(allowLastPositionOnLine) {
 		setPositionAndReveal(line, this._cursorDesiredCharacter);
 	}
 };
-NormalMode.prototype._deleteCharUnderCursor = function() {
+InputHandler.prototype._deleteCharUnderCursor = function() {
 	var pos = activePosition();
 	activeEditor().edit((builder) => {
 		builder.delete(new vscode.Range(pos.line, pos.character, pos.line, pos.character + 1));
 	});
 };
-NormalMode.prototype._deleteToNextWordStart = function() {
+InputHandler.prototype._deleteToNextWordStart = function() {
 	
 };
 
-function InsertMode() {
-}
-InsertMode.prototype.getCursorStyle = function() {
-	return vscode.TextEditorCursorStyle.Line;
-};
-InsertMode.prototype.getStatusText = function() {
-	return 'VIM:> -- INSERT --';
-};
-/**
- * @param {string} text
- */
-InsertMode.prototype.type = function(text) {
-	vscode.commands.executeCommand('default:type', {
-		text: text
-	});
-	return this;
-};
-/**
- * @param {string} text
- * @param {number} replaceCharCnt
- */
-InsertMode.prototype.replacePrevChar = function(text, replaceCharCnt) {
-	vscode.commands.executeCommand('default:replacePrevChar', {
-		text: text,
-		replaceCharCnt: replaceCharCnt
-	});
-	return this;
-};
 
 
 var _statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
