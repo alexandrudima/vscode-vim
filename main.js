@@ -20,6 +20,9 @@ exports.activate = function() {
 	vscode.commands.registerCommand('vim.goToNormalMode', function(args) {
 		_inputHandler.goToNormalMode();
 	});
+	vscode.commands.registerCommand('vim.clearInput', function(args) {
+		_inputHandler.clearInput();
+	});
 	// vscode.commands.registerCommand('paste', function(args) {
 	// 	console.log('paste with: ', args.text, args.pasteOnNewLine);
 	// });
@@ -98,6 +101,10 @@ InputHandler.prototype.goToNormalMode = function() {
 	}
 	this._setMode(NORMAL_MODE);
 };
+InputHandler.prototype.clearInput = function() {
+	this._currentInput = '';
+	this._updateStatus();
+};
 InputHandler.prototype._setMode = function(newMode) {
 	if (newMode !== this._currentMode) {
 		this._currentMode = newMode;
@@ -112,8 +119,9 @@ InputHandler.prototype._setMode = function(newMode) {
 		
 		var inNormalMode = (this._currentMode === NORMAL_MODE);
 		vscode.commands.executeCommand('setContext', 'vim.inNormalMode', inNormalMode);
+		this._ensureNormalModePosition();
 	}
-	_statusBar.text = this.getStatusText();
+	this._updateStatus();
 };
 /**
  * @param {string} text
@@ -122,12 +130,20 @@ InputHandler.prototype.type = function(text) {
 	if (this._currentMode === NORMAL_MODE) {
 		this._currentInput += text;
 		this._interpretNormalModeInput();
+		this._updateStatus();
 	} else {
 		vscode.commands.executeCommand('default:type', {
 			text: text
 		});
 	}
+};
+InputHandler.prototype._updateStatus = function() {
 	_statusBar.text = this.getStatusText();
+	var hasInput = (this._currentInput.length > 0);
+	if (this.hasInput !== hasInput) {
+		this.hasInput = hasInput;
+		vscode.commands.executeCommand('setContext', 'vim.hasInput', this.hasInput);
+	}
 };
 /**
  * @param {string} text
