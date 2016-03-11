@@ -162,74 +162,205 @@ InputHandler.prototype.getStatusText = function() {
 	}
 };
 InputHandler.prototype._interpretNormalModeInput = function() {
-	
-	console.log('_interpretInput: ', this._currentInput);
-	
-	var clear = false;
-	switch(this._currentInput) {
-		case 'h':
-			this._cursorLeft();
-			clear = true;
-			break;
-		case 'j':
-			this._cursorDown();
-			clear = true;
-			break;
-		case 'k':
-			this._cursorUp();
-			clear = true;
-			break;
-		case 'l':
-			this._cursorRight(false);
-			clear = true;
-			break;
-		case 'x':
-			this._deleteCharUnderCursor();
-			clear = true;
-			break;
-		case 'i':
-			this._setMode(INSERT_MODE);
-			return;
-		case 'a':
-			this._cursorRight(true);
-			this._setMode(INSERT_MODE);
-			return;
-		case 'A':
-			this._cursorEndOfLine(true);
-			this._setMode(INSERT_MODE);
-			return;
-		case 'dw':
-			this._deleteToNextWordStart();
-			clear = true;
-			break;
-		case 'de':
-			this._deleteToCurrentWordEnd();
-			clear = true;
-			break;
-		case 'd$':
-			this._deleteToEndOfLine();
-			clear = true;
-			break;
-		case 'w':
-			var newPos = this._motion_w();
-			setPositionAndReveal(newPos.line, newPos.character);
-			clear = true;
-			break;
-		case 'e':
-			var newPos = this._motion_e();
-			setPositionAndReveal(newPos.line, newPos.character);
-			clear = true;
-			break;
-		case '$':
-			var newPos = this._motion_$();
-			setPositionAndReveal(newPos.line, newPos.character);
-			clear = true;
-			break;
+	if (!this.OPERATORS) {
+		this.OPERATORS = [];
+		var defineOperator = (char, canRepeat, takesFurtherArgs, run) => {
+			this.OPERATORS.push({
+				char: char,
+				run: run,
+				canRepeat: canRepeat,
+				takesFurtherArgs: takesFurtherArgs
+			});
+		};
+		
+		defineOperator('h', /*canRepeat*/ true, /*takesFurtherArgs*/false, () => {this._cursorLeft(); return true;});
+		defineOperator('j', /*canRepeat*/ true, /*takesFurtherArgs*/false, () => {this._cursorDown(); return true;});
+		defineOperator('k', /*canRepeat*/ true, /*takesFurtherArgs*/false, () => {this._cursorUp(); return true;});
+		defineOperator('l', /*canRepeat*/ true, /*takesFurtherArgs*/false, () => {this._cursorRight(); return true;});
+		defineOperator('x', /*canRepeat*/ true, /*takesFurtherArgs*/false, () => {this._deleteCharUnderCursor(); return true;});
+		defineOperator('i', /*canRepeat*/false, /*takesFurtherArgs*/false, () => {this._setMode(INSERT_MODE); return true;});
+		defineOperator('a', /*canRepeat*/false, /*takesFurtherArgs*/false, () => {this._cursorRight(true); this._setMode(INSERT_MODE); return true;});
+		defineOperator('A', /*canRepeat*/false, /*takesFurtherArgs*/false, () => {this._cursorEndOfLine(true); this._setMode(INSERT_MODE); return true;});
+		defineOperator('d', /*canRepeat*/ true, /*takesFurtherArgs*/ true, (furtherArgs) => {
+			if (furtherArgs.length === 0) {
+				// waiting for motion
+				return false;
+			}
+			var motion = findMotion(furtherArgs[0]);
+			if (!motion) {
+				// invalid input, play (beep) sound :)
+				return true;
+			}
+			this._deleteTo(motion.run());
+			return true;
+		}, true, true);
 	}
 	
-	if (clear) {
+	if (!this.MOTIONS) {
+		this.MOTIONS = [];
+		var defineMotion = (char, run) => {
+			this.MOTIONS.push({
+				char: char,
+				run: run
+			});
+		};
+		
+		defineMotion('w', () => this._motion_w());
+		defineMotion('e', () => this._motion_e());
+		defineMotion('$', () => this._motion_$());
+	}
+	
+	var repeatCount = 1;
+	var stringInputPart = this._currentInput;
+
+	var repeatCountMatch = stringInputPart.match(/^(\d+)/);
+	if (repeatCountMatch) {
+		repeatCount = parseInt(repeatCountMatch[0], 10);
+		stringInputPart = stringInputPart.substr(repeatCountMatch[0].length);
+	}
+	
+	if (stringInputPart.length === 0) {
+		// still building input
+		return;
+	}
+	
+	var findMotion = (char) => {
+		for (var i = 0; i < this.MOTIONS.length; i++) {
+			var motion = this.MOTIONS[i];
+			if (char === motion.char) {
+				// bingo!
+				return motion;
+			}
+		}
+		return null;
+	};
+	
+	var motion = findMotion(stringInputPart[0]);
+	if (motion) {
+		// it is a motion!
+		for (var cnt = 0; cnt < repeatCount; cnt++) {
+			var newPos = motion.run();
+			setPositionAndReveal(newPos.line, newPos.character);
+		}
+		this._currentInput = '';
+		return;
+	}
+	
+	var findOperator = (char) => {
+		for (var i = 0; i < this.OPERATORS.length; i++) {
+			var operator = this.OPERATORS[i];
+			if (char === operator.char) {
+				return operator;
+			}
+		}
+	};
+	
+	var operator = findOperator(stringInputPart[0]);
+	if (!operator) {
+		// invalid input, play (beep) sound :)
+		this._currentInput = '';
+		return;
+	}
+	
+	if (!operator.canRepeat) {
+		repeatCount = 1;
+	}
+	var clearInput = false;
+	for (var cnt = 0; cnt < repeatCount; cnt++) {
+		clearInput = operator.run(stringInputPart.substr(1)) || clearInput;
+	}
+	if (clearInput) {
 		this._currentInput = '';
 	}
+	
+	
+	// // Check if it is an operator
+	// for (var i = 0; i < this.OPERATORS.length; i++) {
+	// 	var operator = this.OPERATORS[i];
+	// 	if (stringInputPart[0] === operator.char) {
+	// 		// it is an operator!
+	// 		if (operator.takesMotionArg) {
+	// 			if (stringInputPart.length === 1) {
+	// 				// no motion argument yet, still building input
+	// 				return;
+	// 			}
+	// 			var motion = 
+	// 		}
+	// 	}
+	// }
+	// return;
+	// console.log('_interpretInput: ', this._currentInput);
+	// console.log('repeatCount: ', repeatCount);
+	// console.log('stringInputPart: ', stringInputPart);
+	// throw new Error('TODO!');
+
+	// var clear = false;
+	// switch(this._currentInput) {
+	// 	case 'h':
+	// 		this._cursorLeft();
+	// 		clear = true;
+	// 		break;
+	// 	case 'j':
+	// 		this._cursorDown();
+	// 		clear = true;
+	// 		break;
+	// 	case 'k':
+	// 		this._cursorUp();
+	// 		clear = true;
+	// 		break;
+	// 	case 'l':
+	// 		this._cursorRight(false);
+	// 		clear = true;
+	// 		break;
+	// 	case 'x':
+	// 		this._deleteCharUnderCursor();
+	// 		clear = true;
+	// 		break;
+	// 	case 'i':
+	// 		this._setMode(INSERT_MODE);
+	// 		return;
+	// 	case 'a':
+	// 		this._cursorRight(true);
+	// 		this._setMode(INSERT_MODE);
+	// 		return;
+	// 	case 'A':
+	// 		this._cursorEndOfLine(true);
+	// 		this._setMode(INSERT_MODE);
+	// 		return;
+	// 	case 'dw':
+	// 		this._deleteTo(this._motion_w());
+	// 		clear = true;
+	// 		break;
+	// 	case 'de':
+	// 		this._deleteTo(this._motion_e());
+	// 		clear = true;
+	// 		break;
+	// 	case 'd$':
+	// 		this._deleteTo(this._motion_$());
+	// 		clear = true;
+	// 		break;
+	// 	case 'w':
+	// 		var newPos = this._motion_w();
+	// 		setPositionAndReveal(newPos.line, newPos.character);
+	// 		clear = true;
+	// 		break;
+	// 	case 'e':
+	// 		var newPos = this._motion_e();
+	// 		setPositionAndReveal(newPos.line, newPos.character);
+	// 		clear = true;
+	// 		break;
+	// 	case '$':
+	// 		var newPos = this._motion_$();
+	// 		setPositionAndReveal(newPos.line, newPos.character);
+	// 		clear = true;
+	// 		break;
+	// }
+	
+	// if (clear) {
+	// 	this._currentInput = '';
+	// } else {
+		
+	// }
 };
 InputHandler.prototype._cursorLeft = function() {
 	var pos = activePosition();
@@ -293,6 +424,12 @@ InputHandler.prototype._deleteCharUnderCursor = function() {
 		builder.delete(new vscode.Range(pos.line, pos.character, pos.line, pos.character + 1));
 	});
 };
+InputHandler.prototype._deleteTo = function(toPos) {
+	var pos = activePosition();
+	activeEditor().edit((builder) => {
+		builder.delete(new vscode.Range(pos.line, pos.character, toPos.line, toPos.character));
+	});
+};
 InputHandler.prototype._motion_$ = function() {
 	var pos = activePosition();
 	var doc = activeDocument();
@@ -330,63 +467,6 @@ InputHandler.prototype._motion_w = function() {
 		return new vscode.Position(pos.line, nextWord.start);
 	}
 };
-InputHandler.prototype._deleteToEndOfLine = function() {
-	var pos = activePosition();
-	var doc = activeDocument();
-	var maxCharacter = doc.lineAt(pos.line).text.length - 1;
-
-	activeEditor().edit((builder) => {
-		builder.delete(new vscode.Range(pos.line, pos.character, pos.line, maxCharacter + 1));
-	});
-};
-InputHandler.prototype._deleteToNextWordStart = function() {
-	var pos = activePosition();
-	var doc = activeDocument();
-	var maxCharacter = doc.lineAt(pos.line).text.length - 1;
-	
-	if (maxCharacter <= 0) {
-		// no content on this line
-		if (pos.line + 1 >= doc.lineCount) {
-			// on last line
-			return;
-		}
-		// Delete line
-		activeEditor().edit((builder) => {
-			builder.delete(new vscode.Range(pos.line, pos.character, pos.line + 1, 0));
-		});
-		return
-	}
-	
-	if (pos.character >= maxCharacter) {
-		// cursor sitting on last character
-		return this._deleteToEndOfLine();
-	}
-	
-	var nextWord = findNextWord(pos, this.wordCharacterClass);
-	
-	if (!nextWord) {
-		// Delete to the end of the line
-		return this._deleteToEndOfLine();
-	}
-	
-	if (nextWord.start <= pos.character && pos.character < nextWord.end) {
-		// Sitting on a word
-		var nextNextWord = findNextWord(new vscode.Position(pos.line, nextWord.end), this.wordCharacterClass);
-		if (nextNextWord) {
-			// Delete to the start of the next word
-			activeEditor().edit((builder) => {
-				builder.delete(new vscode.Range(pos.line, pos.character, pos.line, nextNextWord.start));
-			});
-		} else {
-			// Delete to the end of the line
-			return this._deleteToEndOfLine();
-		}
-	} else {
-		activeEditor().edit((builder) => {
-			builder.delete(new vscode.Range(pos.line, pos.character, pos.line, nextWord.start));
-		});
-	}
-};
 InputHandler.prototype._motion_e = function() {
 	var pos = activePosition();
 	var doc = activeDocument();
@@ -406,40 +486,6 @@ InputHandler.prototype._motion_e = function() {
 	
 	// return start of the next word
 	return new vscode.Position(pos.line, nextWord.end);
-};
-InputHandler.prototype._deleteToCurrentWordEnd = function() {
-	var pos = activePosition();
-	var doc = activeDocument();
-	var maxCharacter = doc.lineAt(pos.line).text.length - 1;
-	
-	if (maxCharacter <= 0) {
-		// no content on this line
-		if (pos.line + 1 >= doc.lineCount) {
-			// on last line
-			return;
-		}
-		// Delete line
-		activeEditor().edit((builder) => {
-			builder.delete(new vscode.Range(pos.line, pos.character, pos.line + 1, 0));
-		});
-		return
-	}
-	
-	if (pos.character >= maxCharacter) {
-		// cursor sitting on last character
-		return this._deleteToEndOfLine();
-	}
-	
-	var nextWord = findNextWord(pos, this.wordCharacterClass);
-	if (!nextWord) {
-		// Delete to the end of the line
-		return this._deleteToEndOfLine();
-	}
-	
-	// Delete to the end of the next word
-	activeEditor().edit((builder) => {
-		builder.delete(new vscode.Range(pos.line, pos.character, pos.line, nextWord.end));
-	});
 };
 
 var WORD_NONE = 0, WORD_SEPARATOR = 1, WORD_REGULAR = 2;
