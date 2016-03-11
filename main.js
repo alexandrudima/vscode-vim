@@ -42,11 +42,38 @@ function InputHandler() {
 		};
 	});
 	
+	vscode.window.onDidChangeTextEditorSelection((e) => {
+		this._ensureNormalModePosition();
+	});
+	this._ensureNormalModePosition();
+	
 	vscode.workspace.onDidChangeConfiguration(() => {
 		this._readConfig();
 	});
 	this._readConfig();
 }
+InputHandler.prototype._ensureNormalModePosition = function() {
+	if (!vscode.window.activeTextEditor) {
+		return;
+	}
+	if (this._currentMode !== NORMAL_MODE) {
+		return;
+	}
+	var sel = vscode.window.activeTextEditor.selection;
+	if (!sel.isEmpty) {
+		return;
+	}
+	var pos = sel.active;
+	var doc = activeDocument();
+	var lineContent = doc.lineAt(pos.line).text;
+	if (lineContent.length === 0) {
+		return;
+	}
+	var maxCharacter = lineContent.length - 1;
+	if (pos.character > maxCharacter) {
+		setPositionAndReveal(pos.line, maxCharacter);
+	}
+};
 InputHandler.prototype._readConfig = function() {
 	var editorConfig = vscode.workspace.getConfiguration('editor');
 	var wordSeparators = editorConfig.wordSeparators;
