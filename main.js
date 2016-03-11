@@ -210,6 +210,21 @@ InputHandler.prototype._interpretNormalModeInput = function() {
 			this._deleteToEndOfLine();
 			clear = true;
 			break;
+		case 'w':
+			var newPos = this._motion_w();
+			setPositionAndReveal(newPos.line, newPos.character);
+			clear = true;
+			break;
+		case 'e':
+			var newPos = this._motion_e();
+			setPositionAndReveal(newPos.line, newPos.character);
+			clear = true;
+			break;
+		case '$':
+			var newPos = this._motion_$();
+			setPositionAndReveal(newPos.line, newPos.character);
+			clear = true;
+			break;
 	}
 	
 	if (clear) {
@@ -278,6 +293,43 @@ InputHandler.prototype._deleteCharUnderCursor = function() {
 		builder.delete(new vscode.Range(pos.line, pos.character, pos.line, pos.character + 1));
 	});
 };
+InputHandler.prototype._motion_$ = function() {
+	var pos = activePosition();
+	var doc = activeDocument();
+	return new vscode.Position(pos.line, doc.lineAt(pos.line).text.length);
+};
+InputHandler.prototype._motion_w = function() {
+	var pos = activePosition();
+	var doc = activeDocument();
+	var lineContent = doc.lineAt(pos.line).text;
+	
+	if (pos.character >= lineContent.length - 1) {
+		// cursor at end of line
+		return ((pos.line + 1 < doc.lineCount) ? new vscode.Position(pos.line + 1, 0) : pos);
+	}
+	
+	var nextWord = findNextWord(pos, this.wordCharacterClass);
+	
+	if (!nextWord) {
+		// return end of the line
+		return this._motion_$();
+	}
+	
+	if (nextWord.start <= pos.character && pos.character < nextWord.end) {
+		// Sitting on a word
+		var nextNextWord = findNextWord(new vscode.Position(pos.line, nextWord.end), this.wordCharacterClass);
+		if (nextNextWord) {
+			// return start of the next next word
+			return new vscode.Position(pos.line, nextNextWord.start);
+		} else {
+			// return end of line
+			return this._motion_$();
+		}
+	} else {
+		// return start of the next word
+		return new vscode.Position(pos.line, nextWord.start);
+	}
+};
 InputHandler.prototype._deleteToEndOfLine = function() {
 	var pos = activePosition();
 	var doc = activeDocument();
@@ -334,6 +386,26 @@ InputHandler.prototype._deleteToNextWordStart = function() {
 			builder.delete(new vscode.Range(pos.line, pos.character, pos.line, nextWord.start));
 		});
 	}
+};
+InputHandler.prototype._motion_e = function() {
+	var pos = activePosition();
+	var doc = activeDocument();
+	var lineContent = doc.lineAt(pos.line).text;
+	
+	if (pos.character >= lineContent.length - 1) {
+		// no content on this line or cursor at end of line
+		return ((pos.line + 1 < doc.lineCount) ? new vscode.Position(pos.line + 1, 0) : pos);
+	}
+	
+	var nextWord = findNextWord(pos, this.wordCharacterClass);
+	
+	if (!nextWord) {
+		// return end of the line
+		return this._motion_$();
+	}
+	
+	// return start of the next word
+	return new vscode.Position(pos.line, nextWord.end);
 };
 InputHandler.prototype._deleteToCurrentWordEnd = function() {
 	var pos = activePosition();
