@@ -175,6 +175,10 @@ InputHandler.prototype._interpretNormalModeInput = function() {
 			this._deleteToNextWordStart();
 			clear = true;
 			break;
+		case 'd$':
+			this._deleteToEndOfLine();
+			clear = true;
+			break;
 	}
 	
 	if (clear) {
@@ -243,6 +247,15 @@ InputHandler.prototype._deleteCharUnderCursor = function() {
 		builder.delete(new vscode.Range(pos.line, pos.character, pos.line, pos.character + 1));
 	});
 };
+InputHandler.prototype._deleteToEndOfLine = function() {
+	var pos = activePosition();
+	var doc = activeDocument();
+	var maxCharacter = doc.lineAt(pos.line).text.length - 1;
+
+	activeEditor().edit((builder) => {
+		builder.delete(new vscode.Range(pos.line, pos.character, pos.line, maxCharacter + 1));
+	});
+};
 InputHandler.prototype._deleteToNextWordStart = function() {
 	var pos = activePosition();
 	var doc = activeDocument();
@@ -255,20 +268,14 @@ InputHandler.prototype._deleteToNextWordStart = function() {
 	
 	if (pos.character >= maxCharacter) {
 		// cursor sitting on last character
-		activeEditor().edit((builder) => {
-			builder.delete(new vscode.Range(pos.line, maxCharacter, pos.line, maxCharacter + 1));
-		});
-		return;
+		return this._deleteToEndOfLine();
 	}
 	
 	var nextWord = findNextWord(pos, this.wordCharacterClass);
 	
 	if (!nextWord) {
 		// Delete to the end of the line
-		activeEditor().edit((builder) => {
-			builder.delete(new vscode.Range(pos.line, pos.character, pos.line, maxCharacter + 1));
-		});
-		return;
+		return this._deleteToEndOfLine();
 	}
 	
 	if (nextWord.start <= pos.character && pos.character < nextWord.end) {
@@ -281,9 +288,7 @@ InputHandler.prototype._deleteToNextWordStart = function() {
 			});
 		} else {
 			// Delete to the end of the line
-			activeEditor().edit((builder) => {
-				builder.delete(new vscode.Range(pos.line, pos.character, pos.line, maxCharacter + 1));
-			});
+			return this._deleteToEndOfLine();
 		}
 	} else {
 		activeEditor().edit((builder) => {
