@@ -17,6 +17,9 @@ exports.activate = function() {
 		}
 		_inputHandler.replacePrevChar(args.text, args.replaceCharCnt);
 	});
+	vscode.commands.registerCommand('vim.goToNormalMode', function(args) {
+		_inputHandler.goToNormalMode();
+	});
 	// vscode.commands.registerCommand('paste', function(args) {
 	// 	console.log('paste with: ', args.text, args.pasteOnNewLine);
 	// });
@@ -26,24 +29,30 @@ exports.activate = function() {
 };
 
 function InputHandler() {
-	this._currentMode = new NormalMode();
+	this._setMode(new NormalMode());
 	vscode.window.onDidChangeActiveTextEditor((textEditor) => {
 		textEditor.options = {
 			cursorStyle: this._currentMode.getCursorStyle()
 		};
 	});
-	if (vscode.window.activeTextEditor) {
-		vscode.window.activeTextEditor.options = {
-			cursorStyle: this._currentMode.getCursorStyle()
-		};
-	}
 }
+InputHandler.prototype.goToNormalMode = function() {
+	if (this._currentMode instanceof NormalMode) {
+		return;
+	}
+	this._setMode(new NormalMode());
+};
 InputHandler.prototype._setMode = function(newMode) {
 	if (newMode !== this._currentMode) {
 		this._currentMode = newMode;
-		vscode.window.activeTextEditor.options = {
-			cursorStyle: this._currentMode.getCursorStyle()
-		};
+		if (vscode.window.activeTextEditor) {
+			vscode.window.activeTextEditor.options = {
+				cursorStyle: this._currentMode.getCursorStyle()
+			};
+		}
+		
+		var inNormalMode = (this._currentMode instanceof NormalMode);
+		vscode.commands.executeCommand('setContext', 'vim.inNormalMode', inNormalMode);
 	}
 	_statusBar.text = this._currentMode.getStatusText();
 };
@@ -70,9 +79,9 @@ NormalMode.prototype.getCursorStyle = function() {
 };
 NormalMode.prototype.getStatusText = function() {
 	if (this._currentInput) {
-		return 'VIM:> -- NORMAL --';
-	} else {
 		return 'VIM:>' + this._currentInput;
+	} else {
+		return 'VIM:> -- NORMAL --';
 	}
 };
 /**
@@ -110,7 +119,7 @@ NormalMode.prototype._interpretInput = function() {
 			clear = true;
 			break;
 		case 'l':
-			this._cursorRight();
+			this._cursorRight(false);
 			clear = true;
 			break;
 		case 'x':
@@ -119,6 +128,16 @@ NormalMode.prototype._interpretInput = function() {
 			break;
 		case 'i':
 			return new InsertMode();
+		case 'a':
+			this._cursorRight(true);
+			return new InsertMode();
+		case 'A':
+			this._cursorEndOfLine(true);
+			return new InsertMode();
+		case 'dw':
+			this._deleteToNextWordStart();
+			clear = true;
+			break;
 	}
 	
 	if (clear) {
@@ -161,12 +180,24 @@ NormalMode.prototype._cursorUp = function() {
 		setPositionAndReveal(line, Math.min(this._cursorDesiredCharacter, doc.lineAt(line).text.length));
 	}
 };
-NormalMode.prototype._cursorRight = function() {
+NormalMode.prototype._cursorEndOfLine = function(allowLastPositionOnLine) {
 	var pos = activePosition();
 	var doc = activeDocument();
 	var line = pos.line;
+	var maxCharacter = (allowLastPositionOnLine ? doc.lineAt(line).text.length : doc.lineAt(line).text.length - 1);
 	
-	if (pos.character < doc.lineAt(line).text.length - 1) {
+	if (pos.character !== maxCharacter) {
+		this._cursorDesiredCharacter = maxCharacter;
+		setPositionAndReveal(line, this._cursorDesiredCharacter);
+	}
+};
+NormalMode.prototype._cursorRight = function(allowLastPositionOnLine) {
+	var pos = activePosition();
+	var doc = activeDocument();
+	var line = pos.line;
+	var maxCharacter = (allowLastPositionOnLine ? doc.lineAt(line).text.length : doc.lineAt(line).text.length - 1);
+	
+	if (pos.character < maxCharacter) {
 		this._cursorDesiredCharacter = pos.character + 1;
 		setPositionAndReveal(line, this._cursorDesiredCharacter);
 	}
@@ -177,7 +208,9 @@ NormalMode.prototype._deleteCharUnderCursor = function() {
 		builder.delete(new vscode.Range(pos.line, pos.character, pos.line, pos.character + 1));
 	});
 };
-
+NormalMode.prototype._deleteToNextWordStart = function() {
+	
+};
 
 function InsertMode() {
 }

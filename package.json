@@ -8,5 +8,12 @@
 	"activationEvents": [
 		"*"
 	],
-	"main": "./main.js"
+	"main": "./main.js",
+	"contributes": {
+		"keybindings": [{
+			"command": "vim.goToNormalMode",
+			"key": "Escape",
+			"when": "editorTextFocus && !vim.inNormalMode"
+		}]
+	}
 }
