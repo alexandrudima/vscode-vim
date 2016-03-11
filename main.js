@@ -30,6 +30,10 @@ exports.activate = function() {
 
 var NORMAL_MODE = 0, INSERT_MODE = 1;
 
+var CHARACTER_CLASS_REGULAR = 0;
+var CHARACTER_CLASS_WORD_SEPARATOR = 1;
+var CHARACTER_CLASS_WHITESPACE = 2;
+
 function InputHandler() {
 	this._setMode(NORMAL_MODE);
 	vscode.window.onDidChangeActiveTextEditor((textEditor) => {
@@ -37,7 +41,30 @@ function InputHandler() {
 			cursorStyle: this.getCursorStyle()
 		};
 	});
+	
+	vscode.workspace.onDidChangeConfiguration(() => {
+		this._readConfig();
+	});
+	this._readConfig();
 }
+InputHandler.prototype._readConfig = function() {
+	var editorConfig = vscode.workspace.getConfiguration('editor');
+	var wordSeparators = editorConfig.wordSeparators;
+	
+	this.wordCharacterClass = [];
+	
+	// Make array fast for ASCII text
+	for (var chCode = 0; chCode < 256; chCode++) {
+		this.wordCharacterClass[chCode] = CHARACTER_CLASS_REGULAR;
+	}
+
+	for (var i = 0, len = wordSeparators.length; i < len; i++) {
+		this.wordCharacterClass[wordSeparators.charCodeAt(i)] = CHARACTER_CLASS_WORD_SEPARATOR;
+	}
+
+	this.wordCharacterClass[' '.charCodeAt(0)] = CHARACTER_CLASS_WHITESPACE;
+	this.wordCharacterClass['\t'.charCodeAt(0)] = CHARACTER_CLASS_WHITESPACE;
+};
 InputHandler.prototype.goToNormalMode = function() {
 	if (this._currentMode === NORMAL_MODE) {
 		return;
@@ -217,10 +244,113 @@ InputHandler.prototype._deleteCharUnderCursor = function() {
 	});
 };
 InputHandler.prototype._deleteToNextWordStart = function() {
+	var pos = activePosition();
+	var doc = activeDocument();
+	var maxCharacter = doc.lineAt(pos.line).text.length - 1;
+	
+	if (maxCharacter <= 0) {
+		// no content on this line
+		return;
+	}
+	
+	if (pos.character >= maxCharacter) {
+		// cursor sitting on last character
+		activeEditor().edit((builder) => {
+			builder.delete(new vscode.Range(pos.line, maxCharacter, pos.line, maxCharacter + 1));
+		});
+		return;
+	}
+	
+	var nextWord = findNextWord(pos, this.wordCharacterClass);
+	
+	if (!nextWord) {
+		// Delete to the end of the line
+		activeEditor().edit((builder) => {
+			builder.delete(new vscode.Range(pos.line, pos.character, pos.line, maxCharacter + 1));
+		});
+		return;
+	}
+	
+	if (nextWord.start <= pos.character && pos.character < nextWord.end) {
+		// Sitting on a word
+		var nextNextWord = findNextWord(new vscode.Position(pos.line, nextWord.end), this.wordCharacterClass);
+		if (nextNextWord) {
+			// Delete to the start of the next word
+			activeEditor().edit((builder) => {
+				builder.delete(new vscode.Range(pos.line, pos.character, pos.line, nextNextWord.start));
+			});
+		} else {
+			// Delete to the end of the line
+			activeEditor().edit((builder) => {
+				builder.delete(new vscode.Range(pos.line, pos.character, pos.line, maxCharacter + 1));
+			});
+		}
+	} else {
+		activeEditor().edit((builder) => {
+			builder.delete(new vscode.Range(pos.line, pos.character, pos.line, nextWord.start));
+		});
+	}
 	
 };
 
+var WORD_NONE = 0, WORD_SEPARATOR = 1, WORD_REGULAR = 2;
+function findNextWord(pos, wordCharacterClass) {
+	var doc = activeDocument();
+	
+	var lineContent = doc.lineAt(pos.line).text;
+	var wordType = WORD_NONE;
+	var len = lineContent.length;
+	
+	for (var chIndex = pos.character; chIndex < len; chIndex++) {
+		var chCode = lineContent.charCodeAt(chIndex);
+		var chClass = (wordCharacterClass[chCode] || CHARACTER_CLASS_REGULAR);
+		
+		if (chClass === CHARACTER_CLASS_REGULAR) {
+			if (wordType === WORD_SEPARATOR) {
+				return _createWord(lineContent, wordType, _findStartOfWord(lineContent, wordCharacterClass, wordType, chIndex - 1), chIndex);
+			}
+			wordType = WORD_REGULAR;
+		} else if (chClass === CHARACTER_CLASS_WORD_SEPARATOR) {
+			if (wordType === WORD_REGULAR) {
+				return _createWord(lineContent, wordType, _findStartOfWord(lineContent, wordCharacterClass, wordType, chIndex - 1), chIndex);
+			}
+			wordType = WORD_SEPARATOR;
+		} else if (chClass === CHARACTER_CLASS_WHITESPACE) {
+			if (wordType !== WORD_NONE) {
+				return _createWord(lineContent, wordType, _findStartOfWord(lineContent, wordCharacterClass, wordType, chIndex - 1), chIndex);
+			}
+		}
+	}
 
+	if (wordType !== WORD_NONE) {
+		return _createWord(lineContent, wordType, _findStartOfWord(lineContent, wordCharacterClass, wordType, len - 1), len);
+	}
+
+	return null;
+}
+
+function _findStartOfWord(lineContent, wordCharacterClass, wordType, startIndex) {
+	for (var chIndex = startIndex; chIndex >= 0; chIndex--) {
+		var chCode = lineContent.charCodeAt(chIndex);
+		var chClass = (wordCharacterClass[chCode] || CHARACTER_CLASS_REGULAR);
+
+		if (chClass === CHARACTER_CLASS_WHITESPACE) {
+			return chIndex + 1;
+		}
+		if (wordType === WORD_REGULAR && chClass === CHARACTER_CLASS_WORD_SEPARATOR) {
+			return chIndex + 1;
+		}
+		if (wordType === WORD_SEPARATOR && chClass === CHARACTER_CLASS_REGULAR) {
+			return chIndex + 1;
+		}
+	}
+	return 0;
+}
+
+function _createWord(lineContent, wordType, start, end) {
+	// console.log('WORD ==> ' + start + ' => ' + end + ':::: <<<' + lineContent.substring(start, end) + '>>>');
+	return { start: start, end: end, wordType: wordType };
+}
 
 var _statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
 _statusBar.show();
