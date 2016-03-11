@@ -202,6 +202,10 @@ InputHandler.prototype._interpretNormalModeInput = function() {
 			this._deleteToNextWordStart();
 			clear = true;
 			break;
+		case 'de':
+			this._deleteToCurrentWordEnd();
+			clear = true;
+			break;
 		case 'd$':
 			this._deleteToEndOfLine();
 			clear = true;
@@ -290,7 +294,15 @@ InputHandler.prototype._deleteToNextWordStart = function() {
 	
 	if (maxCharacter <= 0) {
 		// no content on this line
-		return;
+		if (pos.line + 1 >= doc.lineCount) {
+			// on last line
+			return;
+		}
+		// Delete line
+		activeEditor().edit((builder) => {
+			builder.delete(new vscode.Range(pos.line, pos.character, pos.line + 1, 0));
+		});
+		return
 	}
 	
 	if (pos.character >= maxCharacter) {
@@ -322,7 +334,40 @@ InputHandler.prototype._deleteToNextWordStart = function() {
 			builder.delete(new vscode.Range(pos.line, pos.character, pos.line, nextWord.start));
 		});
 	}
+};
+InputHandler.prototype._deleteToCurrentWordEnd = function() {
+	var pos = activePosition();
+	var doc = activeDocument();
+	var maxCharacter = doc.lineAt(pos.line).text.length - 1;
 	
+	if (maxCharacter <= 0) {
+		// no content on this line
+		if (pos.line + 1 >= doc.lineCount) {
+			// on last line
+			return;
+		}
+		// Delete line
+		activeEditor().edit((builder) => {
+			builder.delete(new vscode.Range(pos.line, pos.character, pos.line + 1, 0));
+		});
+		return
+	}
+	
+	if (pos.character >= maxCharacter) {
+		// cursor sitting on last character
+		return this._deleteToEndOfLine();
+	}
+	
+	var nextWord = findNextWord(pos, this.wordCharacterClass);
+	if (!nextWord) {
+		// Delete to the end of the line
+		return this._deleteToEndOfLine();
+	}
+	
+	// Delete to the end of the next word
+	activeEditor().edit((builder) => {
+		builder.delete(new vscode.Range(pos.line, pos.character, pos.line, nextWord.end));
+	});
 };
 
 var WORD_NONE = 0, WORD_SEPARATOR = 1, WORD_REGULAR = 2;
