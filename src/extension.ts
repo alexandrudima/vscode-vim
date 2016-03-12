@@ -52,7 +52,7 @@ class InputHandler implements IController {
 
 	private _currentMode: Mode;
 	private _currentInput: string;
-	private hasInput: boolean;
+	private _hasInput: boolean;
 	private _motionState: MotionState;
 
 	public get motionState(): MotionState { return this._motionState; }
@@ -61,8 +61,11 @@ class InputHandler implements IController {
 
 	constructor() {
 		this._motionState = new MotionState();
-		this.setMode(Mode.NORMAL_MODE);
+		this.setMode(Mode.NORMAL);
 		vscode.window.onDidChangeActiveTextEditor((textEditor) => {
+			if (!textEditor) {
+				return;
+			}
 			textEditor.options = {
 				cursorStyle: this.getCursorStyle()
 			};
@@ -83,7 +86,7 @@ class InputHandler implements IController {
 		if (!vscode.window.activeTextEditor) {
 			return;
 		}
-		if (this._currentMode !== Mode.NORMAL_MODE) {
+		if (this._currentMode !== Mode.NORMAL) {
 			return;
 		}
 		let sel = vscode.window.activeTextEditor.selection;
@@ -110,10 +113,10 @@ class InputHandler implements IController {
 	}
 
 	public goToNormalMode(): void {
-		if (this._currentMode === Mode.NORMAL_MODE) {
+		if (this._currentMode === Mode.NORMAL) {
 			return;
 		}
-		this.setMode(Mode.NORMAL_MODE);
+		this.setMode(Mode.NORMAL);
 	}
 
 	public clearInput(): void {
@@ -133,7 +136,7 @@ class InputHandler implements IController {
 				};
 			}
 
-			let inNormalMode = (this._currentMode === Mode.NORMAL_MODE);
+			let inNormalMode = (this._currentMode === Mode.NORMAL);
 			vscode.commands.executeCommand('setContext', 'vim.inNormalMode', inNormalMode);
 			this._ensureNormalModePosition();
 		}
@@ -141,7 +144,7 @@ class InputHandler implements IController {
 	}
 
 	public type(text:string): void {
-		if (this._currentMode === Mode.NORMAL_MODE) {
+		if (this._currentMode === Mode.NORMAL) {
 			this._currentInput += text;
 			this._interpretNormalModeInput();
 			this._updateStatus();
@@ -155,14 +158,14 @@ class InputHandler implements IController {
 	private _updateStatus(): void {
 		_statusBar.text = this.getStatusText();
 		let hasInput = (this._currentInput.length > 0);
-		if (this.hasInput !== hasInput) {
-			this.hasInput = hasInput;
-			vscode.commands.executeCommand('setContext', 'vim.hasInput', this.hasInput);
+		if (this._hasInput !== hasInput) {
+			this._hasInput = hasInput;
+			vscode.commands.executeCommand('setContext', 'vim.hasInput', this._hasInput);
 		}
 	}
 
 	public replacePrevChar(text:string, replaceCharCnt:number): void {
-		if (this._currentMode === Mode.NORMAL_MODE) {
+		if (this._currentMode === Mode.NORMAL) {
 			console.log('TODO: default mode replacePrevChar: ', arguments);
 		} else {
 			vscode.commands.executeCommand('default:replacePrevChar', {
@@ -173,7 +176,7 @@ class InputHandler implements IController {
 	}
 
 	private getCursorStyle(): vscode.TextEditorCursorStyle {
-		if (this._currentMode === Mode.NORMAL_MODE) {
+		if (this._currentMode === Mode.NORMAL) {
 			return vscode.TextEditorCursorStyle.Block;
 		} else {
 			return vscode.TextEditorCursorStyle.Line;
@@ -181,7 +184,7 @@ class InputHandler implements IController {
 	}
 
 	private getStatusText(): string {
-		if (this._currentMode === Mode.NORMAL_MODE) {
+		if (this._currentMode === Mode.NORMAL) {
 			if (this._currentInput) {
 				return 'VIM:>' + this._currentInput;
 			} else {

@@ -8,8 +8,8 @@ import {TextEditor} from 'vscode';
 import {MotionState, Motion} from './motions';
 
 export enum Mode {
-	INSERT_MODE,
-	NORMAL_MODE
+	INSERT,
+	NORMAL
 }
 
 export interface IController {

@@ -28,7 +28,7 @@ export abstract class Operator {
 
 class InsertOperator extends Operator {
 	public run(ctrl:IController, repeatCount:number, args:string): boolean {
-		ctrl.setMode(Mode.INSERT_MODE);
+		ctrl.setMode(Mode.INSERT);
 		return true;
 	}
 }
@@ -37,7 +37,7 @@ class AppendOperator extends Operator {
 	public run(ctrl:IController, repeatCount:number, args:string): boolean {
 		let newPos = Motions.Right.run(this.doc(ctrl), this.pos(ctrl), ctrl.motionState);
 		this.setPosReveal(ctrl, newPos.line, newPos.character);
-		ctrl.setMode(Mode.INSERT_MODE);
+		ctrl.setMode(Mode.INSERT);
 		return true;
 	}
 }
@@ -46,7 +46,7 @@ class AppendEndOfLineOperator extends Operator {
 	public run(ctrl:IController, repeatCount:number, args:string): boolean {
 		let newPos = Motions.EndOfLine.run(this.doc(ctrl), this.pos(ctrl), ctrl.motionState);
 		this.setPosReveal(ctrl, newPos.line, newPos.character);
-		ctrl.setMode(Mode.INSERT_MODE);
+		ctrl.setMode(Mode.INSERT);
 		return true;
 	}
 }
