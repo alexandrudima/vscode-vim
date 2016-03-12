@@ -51,7 +51,7 @@ class RepeatingMotion extends Motion {
 	}
 }
 
-class MotionNextCharacter extends Motion {
+class NextCharacterMotion extends Motion {
 	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
 		if (pos.character === doc.lineAt(pos.line).text.length) {
 			// on last character
@@ -62,7 +62,7 @@ class MotionNextCharacter extends Motion {
 	}
 }
 
-class MotionLeft extends Motion {
+class LeftMotion extends Motion {
 	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
 		let line = pos.line;
 
@@ -75,7 +75,7 @@ class MotionLeft extends Motion {
 	}
 }
 
-class MotionDown extends Motion {
+class DownMotion extends Motion {
 	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
 		let line = pos.line;
 
@@ -90,7 +90,7 @@ class MotionDown extends Motion {
 	}
 }
 
-class MotionUp extends Motion {
+class UpMotion extends Motion {
 	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
 		let line = pos.line;
 
@@ -105,7 +105,7 @@ class MotionUp extends Motion {
 	}
 }
 
-class MotionRight extends Motion {
+class RightMotion extends Motion {
 	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
 		let line = pos.line;
 		let maxCharacter = doc.lineAt(line).text.length;
@@ -119,19 +119,19 @@ class MotionRight extends Motion {
 	}
 }
 
-class MotionEndOfLine extends Motion {
+class EndOfLineMotion extends Motion {
 	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
 		return new Position(pos.line, doc.lineAt(pos.line).text.length);
 	}
 }
 
-class MotionStartOfLine extends Motion {
+class StartOfLineMotion extends Motion {
 	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
 		return new Position(pos.line, 0);
 	}
 }
 
-class MotionNextWordStart extends Motion {
+class NextWordStartMotion extends Motion {
 	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
 		let lineContent = doc.lineAt(pos.line).text;
 
@@ -164,7 +164,7 @@ class MotionNextWordStart extends Motion {
 	}
 }
 
-class MotionNextWordEnd extends Motion {
+class NextWordEndMotion extends Motion {
 	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
 		let lineContent = doc.lineAt(pos.line).text;
 
@@ -185,7 +185,7 @@ class MotionNextWordEnd extends Motion {
 	}
 }
 
-class MotionGoToLineUndefined extends Motion {
+class GoToLineUndefinedMotion extends Motion {
 	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
 		// does not do anything
 		return pos;
@@ -195,7 +195,7 @@ class MotionGoToLineUndefined extends Motion {
 		if (!hasRepeatCount) {
 			return Motions.GoToLastLine;
 		}
-		return new MotionGoToLineDefined(count);
+		return new GoToLineDefinedMotion(count);
 	}
 }
 
@@ -216,20 +216,20 @@ abstract class GoToLineMotion extends Motion {
 
 }
 
-class MotionGoToFirstLine extends GoToLineMotion {
+class GoToFirstLineMotion extends GoToLineMotion {
 	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
 		return new Position(0, this.firstNonWhitespaceChar(doc, 0));
 	}
 }
 
-class MotionGoToLastLine extends GoToLineMotion {
+class GoToLastLineMotion extends GoToLineMotion {
 	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
 		let lastLine = doc.lineCount - 1;
 		return new Position(lastLine, this.firstNonWhitespaceChar(doc, lastLine));
 	}
 }
 
-class MotionGoToLineDefined extends GoToLineMotion {
+class GoToLineDefinedMotion extends GoToLineMotion {
 	private _lineNumber:number;
 
 	constructor(lineNumber:number) {
@@ -244,16 +244,16 @@ class MotionGoToLineDefined extends GoToLineMotion {
 }
 
 export const Motions = {
-	NextCharacter: new MotionNextCharacter(),
-	Left: new MotionLeft(),
-	Down: new MotionDown(),
-	Up: new MotionUp(),
-	Right: new MotionRight(),
-	EndOfLine: new MotionEndOfLine(),
-	StartOfLine: new MotionStartOfLine(),
-	NextWordStart: new MotionNextWordStart(),
-	NextWordEnd: new MotionNextWordEnd(),
-	GoToLine: new MotionGoToLineUndefined(),
-	GoToFirstLine: new MotionGoToFirstLine(),
-	GoToLastLine: new MotionGoToLastLine(),
+	NextCharacter: new NextCharacterMotion(),
+	Left: new LeftMotion(),
+	Down: new DownMotion(),
+	Up: new UpMotion(),
+	Right: new RightMotion(),
+	EndOfLine: new EndOfLineMotion(),
+	StartOfLine: new StartOfLineMotion(),
+	NextWordStart: new NextWordStartMotion(),
+	NextWordEnd: new NextWordEndMotion(),
+	GoToLine: new GoToLineUndefinedMotion(),
+	GoToFirstLine: new GoToFirstLineMotion(),
+	GoToLastLine: new GoToLastLineMotion(),
 };
