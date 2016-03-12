@@ -66,9 +66,16 @@ abstract class OperatorWithMotion extends Operator {
 	public run(ctrl: IController, repeatCount: number, args: string): boolean {
 		let motion = ctrl.findMotion(args);
 		if (!motion) {
-			return false;
+
+			// is it motion building
+			if (args.length === 0 || /^[1-9]\d*$/.test(args)) {
+				return false;
+			}
+
+			// INVALID INPUT - beep!!
+			return true;
 		}
-		console.log('I HAVE MOTION!');
+
 		return this._run(ctrl, motion.repeat(repeatCount));
 	}
 

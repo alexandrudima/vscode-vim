@@ -4,7 +4,6 @@
  *--------------------------------------------------------------------------------------------*/
 'use strict';
 
-import {Words} from './words';
 import {
 	TextEditorCursorStyle,
 	Position,
@@ -13,6 +12,7 @@ import {
 	TextEditorRevealType
 } from 'vscode';
 
+import {Words} from './words';
 import {MotionState, Motion} from './motions';
 import {Mode, IController} from './common';
 import {Mappings} from './mappings';
@@ -35,16 +35,15 @@ export class Controller implements IController {
 	constructor(driver: IDriver, wordSeparators: string) {
 		this._driver = driver;
 		this._motionState = new MotionState();
-		this._motionState.wordCharacterClass = Words.createWordCharacters(wordSeparators);
+		this.setWordSeparators(wordSeparators);
 		this.setMode(Mode.NORMAL);
-		// this._ensureNormalModePosition();
 	}
 
 	public setWordSeparators(wordSeparators: string): void {
 		this._motionState.wordCharacterClass = Words.createWordCharacters(wordSeparators);
 	}
 
-	public _ensureNormalModePosition(): void {
+	public ensureNormalModePosition(): void {
 		if (this._currentMode !== Mode.NORMAL) {
 			return;
 		}
@@ -85,7 +84,6 @@ export class Controller implements IController {
 			this._currentMode = newMode;
 			this._motionState.cursorDesiredCharacter = -1; // uninitialized
 			this._currentInput = '';
-			this._ensureNormalModePosition();
 		}
 	}
 
@@ -135,7 +133,6 @@ export class Controller implements IController {
 		let operator = Mappings.findOperator(this._currentInput);
 		if (operator) {
 			if (operator(this)) {
-				console.log('OPERATOR CLEARS INPUT');
 				this._currentInput = '';
 			}
 			return;
@@ -149,14 +146,12 @@ export class Controller implements IController {
 			return;
 		}
 
-		console.log('FELL THROUGH: ' + this._currentInput);
-
 		// is it motion building
 		if (/^[1-9]\d*$/.test(this._currentInput)) {
 			return;
 		}
 
-		// beep!!
+		// INVALID INPUT - beep!!
 		this._currentInput = '';
 	}
 }

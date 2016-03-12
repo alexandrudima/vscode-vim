@@ -13,62 +13,48 @@ import {Mode, IController} from './common';
 import {Mappings} from './mappings';
 import {Controller} from './controller';
 
-export function deactivate() {
-}
-
 export function activate(context: vscode.ExtensionContext) {
-	console.log('I am activated!');
+	function registerCommandNice(commandId:string, run:(...args:any[])=>void): void {
+		context.subscriptions.push(vscode.commands.registerCommand(commandId, run));
+	}
 
-	vscode.commands.registerCommand('type', function(args) {
+	registerCommandNice('type', function(args) {
 		if (!vscode.window.activeTextEditor) {
 			return;
 		}
 		_inputHandler.type(args.text);
 	});
-	vscode.commands.registerCommand('replacePreviousChar', function(args) {
+	registerCommandNice('replacePreviousChar', function(args) {
 		if (!vscode.window.activeTextEditor) {
 			return;
 		}
 		_inputHandler.replacePrevChar(args.text, args.replaceCharCnt);
 	});
-	vscode.commands.registerCommand('vim.goToNormalMode', function(args) {
+	registerCommandNice('vim.goToNormalMode', function(args) {
 		_inputHandler.goToNormalMode();
 	});
-	vscode.commands.registerCommand('vim.clearInput', function(args) {
+	registerCommandNice('vim.clearInput', function(args) {
 		_inputHandler.clearInput();
 	});
-	// vscode.commands.registerCommand('paste', function(args) {
+	// registerCommandNice('paste', function(args) {
 	// 	console.log('paste with: ', args.text, args.pasteOnNewLine);
 	// });
-	// vscode.commands.registerCommand('cut', function(args) {
+	// registerCommandNice('cut', function(args) {
 	// 	console.log('cut (no args)');
 	// });
-};
+}
 
-// let NORMAL_MODE = 0, INSERT_MODE = 1;
-
-
-
-// vscode.window.activeTextEditor
-// {
-
-// }
+export function deactivate() {
+	// Everything is nicely registered in context.subscriptions,
+	// so nothing to do for now.
+}
 
 function getConfiguredWordSeparators(): string {
 	let editorConfig = vscode.workspace.getConfiguration('editor');
 	return editorConfig['wordSeparators'];
 }
 
-class InputHandler /*implements IController*/ {
-
-	// private _currentMode: Mode;
-	// private _currentInput: string;
-	// private _hasInput: boolean;
-	// private _motionState: MotionState;
-
-	// public get motionState(): MotionState { return this._motionState; }
-	// public get editor(): vscode.TextEditor { return vscode.window.activeTextEditor; }
-	// public findMotion(input:string): Motion { return Mappings.findMotion(input); }
+class InputHandler {
 
 	private _controller: Controller;
 
@@ -87,9 +73,9 @@ class InputHandler /*implements IController*/ {
 		});
 
 		// TODO: do it better!
-		this._controller._ensureNormalModePosition();
+		this._controller.ensureNormalModePosition();
 		vscode.window.onDidChangeTextEditorSelection((e) => {
-			this._controller._ensureNormalModePosition();
+			this._controller.ensureNormalModePosition();
 		});
 
 		vscode.workspace.onDidChangeConfiguration(() => {
@@ -179,34 +165,9 @@ class InputHandler /*implements IController*/ {
 		this._lastHasInput = hasInput;
 		vscode.commands.executeCommand('setContext', 'vim.hasInput', hasInput);
 	}
-
-
-
-	// private _updateStatus(): void {
-
-	// 	let hasInput = (this._currentInput.length > 0);
-	// 	if (this._hasInput !== hasInput) {
-	// 		this._hasInput = hasInput;
-	// 		vscode.commands.executeCommand('setContext', 'vim.hasInput', this._hasInput);
-	// 	}
-	// }
-
-
-
-
 }
 
 let _statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
 _statusBar.show();
 let _inputHandler = new InputHandler();
 
-// function setPositionAndReveal(line, char) {
-// 	vscode.window.activeTextEditor.selection = new vscode.Selection(new vscode.Position(line, char), new vscode.Position(line, char));
-// 	vscode.window.activeTextEditor.revealRange(vscode.window.activeTextEditor.selection, vscode.TextEditorRevealType.Default);
-// }
-// function activePosition() {
-// 	return vscode.window.activeTextEditor.selection.active;
-// }
-// function activeDocument() {
-// 	return vscode.window.activeTextEditor.document;
-// }
