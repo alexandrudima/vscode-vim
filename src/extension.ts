@@ -176,6 +176,9 @@ class VimExt {
 	}
 
 	private _ensureCursorStyle(cursorStyle: vscode.TextEditorCursorStyle): void {
+		if (!vscode.window.activeTextEditor) {
+			return;
+		}
 		let currentCursorStyle = vscode.window.activeTextEditor.options.cursorStyle;
 		if (currentCursorStyle !== cursorStyle) {
 			vscode.window.activeTextEditor.options = {
