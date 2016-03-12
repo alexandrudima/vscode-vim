@@ -11,6 +11,7 @@ import {MotionState, Motion, Motions} from './motions';
 import {Operator, Operators} from './operators';
 import {Mode, IController} from './common';
 import {Mappings} from './mappings';
+import {Controller} from './controller';
 
 export function deactivate() {
 }
@@ -48,194 +49,164 @@ export function activate(context: vscode.ExtensionContext) {
 
 
 
-class InputHandler implements IController {
+// vscode.window.activeTextEditor
+// {
 
-	private _currentMode: Mode;
-	private _currentInput: string;
-	private _hasInput: boolean;
-	private _motionState: MotionState;
+// }
 
-	public get motionState(): MotionState { return this._motionState; }
-	public get editor(): vscode.TextEditor { return vscode.window.activeTextEditor; }
-	public findMotion(input:string): Motion { return Mappings.findMotion(input); }
+function getConfiguredWordSeparators(): string {
+	let editorConfig = vscode.workspace.getConfiguration('editor');
+	return editorConfig['wordSeparators'];
+}
+
+class InputHandler /*implements IController*/ {
+
+	// private _currentMode: Mode;
+	// private _currentInput: string;
+	// private _hasInput: boolean;
+	// private _motionState: MotionState;
+
+	// public get motionState(): MotionState { return this._motionState; }
+	// public get editor(): vscode.TextEditor { return vscode.window.activeTextEditor; }
+	// public findMotion(input:string): Motion { return Mappings.findMotion(input); }
+
+	private _controller:Controller;
 
 	constructor() {
-		this._motionState = new MotionState();
-		this.setMode(Mode.NORMAL);
+		this._controller = new Controller({
+			getActiveTextEditor: () => {
+				return vscode.window.activeTextEditor;
+			}
+		}, getConfiguredWordSeparators())
+
 		vscode.window.onDidChangeActiveTextEditor((textEditor) => {
 			if (!textEditor) {
 				return;
 			}
-			textEditor.options = {
-				cursorStyle: this.getCursorStyle()
-			};
+			this._ensureState();
 		});
 
+		// TODO: do it better!
+		this._controller._ensureNormalModePosition();
 		vscode.window.onDidChangeTextEditorSelection((e) => {
-			this._ensureNormalModePosition();
+			this._controller._ensureNormalModePosition();
 		});
-		this._ensureNormalModePosition();
 
 		vscode.workspace.onDidChangeConfiguration(() => {
-			this._readConfig();
+			this._controller.setWordSeparators(getConfiguredWordSeparators());
 		});
-		this._readConfig();
-	}
 
-	private _ensureNormalModePosition(): void {
-		if (!vscode.window.activeTextEditor) {
-			return;
-		}
-		if (this._currentMode !== Mode.NORMAL) {
-			return;
-		}
-		let sel = vscode.window.activeTextEditor.selection;
-		if (!sel.isEmpty) {
-			return;
-		}
-		let pos = sel.active;
-		let doc = activeDocument();
-		let lineContent = doc.lineAt(pos.line).text;
-		if (lineContent.length === 0) {
-			return;
-		}
-		let maxCharacter = lineContent.length - 1;
-		if (pos.character > maxCharacter) {
-			setPositionAndReveal(pos.line, maxCharacter);
-		}
-	}
-
-	private _readConfig(): void {
-		let editorConfig = vscode.workspace.getConfiguration('editor');
-		let wordSeparators = editorConfig.wordSeparators;
-
-		this._motionState.wordCharacterClass = Words.createWordCharacters(wordSeparators);
+		this._ensureState();
 	}
 
 	public goToNormalMode(): void {
-		if (this._currentMode === Mode.NORMAL) {
-			return;
-		}
-		this.setMode(Mode.NORMAL);
+		this._controller.setMode(Mode.NORMAL);
+		this._ensureState();
 	}
 
 	public clearInput(): void {
-		this._currentInput = '';
-		this._updateStatus();
-	}
-
-	public setMode(newMode:Mode): void {
-		if (newMode !== this._currentMode) {
-			this._currentMode = newMode;
-			this._motionState.cursorDesiredCharacter = -1; // uninitialized
-			this._currentInput = '';
-
-			if (vscode.window.activeTextEditor) {
-				vscode.window.activeTextEditor.options = {
-					cursorStyle: this.getCursorStyle()
-				};
-			}
-
-			let inNormalMode = (this._currentMode === Mode.NORMAL);
-			vscode.commands.executeCommand('setContext', 'vim.inNormalMode', inNormalMode);
-			this._ensureNormalModePosition();
-		}
-		this._updateStatus();
+		this._controller.clearInput();
+		this._ensureState();
 	}
 
 	public type(text:string): void {
-		if (this._currentMode === Mode.NORMAL) {
-			this._currentInput += text;
-			this._interpretNormalModeInput();
-			this._updateStatus();
-		} else {
-			vscode.commands.executeCommand('default:type', {
-				text: text
-			});
+		if (this._controller.type(text)) {
+			this._ensureState();
+			return;
 		}
-	}
-
-	private _updateStatus(): void {
-		_statusBar.text = this.getStatusText();
-		let hasInput = (this._currentInput.length > 0);
-		if (this._hasInput !== hasInput) {
-			this._hasInput = hasInput;
-			vscode.commands.executeCommand('setContext', 'vim.hasInput', this._hasInput);
-		}
+		vscode.commands.executeCommand('default:type', {
+			text: text
+		});
 	}
 
 	public replacePrevChar(text:string, replaceCharCnt:number): void {
-		if (this._currentMode === Mode.NORMAL) {
-			console.log('TODO: default mode replacePrevChar: ', arguments);
-		} else {
-			vscode.commands.executeCommand('default:replacePrevChar', {
-				text: text,
-				replaceCharCnt: replaceCharCnt
-			});
-		}
-	}
-
-	private getCursorStyle(): vscode.TextEditorCursorStyle {
-		if (this._currentMode === Mode.NORMAL) {
-			return vscode.TextEditorCursorStyle.Block;
-		} else {
-			return vscode.TextEditorCursorStyle.Line;
-		}
-	}
-
-	private getStatusText(): string {
-		if (this._currentMode === Mode.NORMAL) {
-			if (this._currentInput) {
-				return 'VIM:>' + this._currentInput;
-			} else {
-				return 'VIM:> -- NORMAL --';
-			}
-		} else {
-			return 'VIM:> -- INSERT --';
-		}
-	}
-
-	private _interpretNormalModeInput(): void {
-		let operator = Mappings.findOperator(this._currentInput);
-		if (operator) {
-			if (operator(this)) {
-				console.log('OPERATOR CLEARS INPUT');
-				this._currentInput = '';
-			}
+		if (this._controller.replacePrevChar(text, replaceCharCnt)) {
+			this._ensureState();
 			return;
 		}
-
-		let motion = Mappings.findMotion(this._currentInput);
-		if (motion) {
-			let newPos = motion.run(activeDocument(), activePosition(), this._motionState);
-			setPositionAndReveal(newPos.line, newPos.character);
-			this._currentInput = '';
-			return;
-		}
-
-		console.log('FELL THROUGH: ' + this._currentInput);
-
-		// is it motion building
-		if (/^[1-9]\d*$/.test(this._currentInput)) {
-			return;
-		}
-
-		// beep!!
-		this._currentInput = '';
+		vscode.commands.executeCommand('default:replacePrevChar', {
+			text: text,
+			replaceCharCnt: replaceCharCnt
+		});
 	}
+
+	private _ensureState(): void {
+		// 1. status bar
+		this._ensureStatusText(this._controller.getStatusText());
+
+		// 2. cursor style
+		this._ensureCursorStyle(this._controller.getCursorStyle());
+
+		// 3. context: vim.inNormalMode
+		this._ensureContextInNormalMode(this._controller.getMode() === Mode.NORMAL);
+
+		// 4. context: vim.hasInput
+		this._ensureContextHasInput(this._controller.hasInput());
+	}
+
+	private _lastStatusText: string;
+	private _ensureStatusText(text:string): void {
+		if (this._lastStatusText === text) {
+			return;
+		}
+		this._lastStatusText = text;
+		_statusBar.text = this._lastStatusText;
+	}
+
+	private _ensureCursorStyle(cursorStyle:vscode.TextEditorCursorStyle): void {
+		let currentCursorStyle = vscode.window.activeTextEditor.options.cursorStyle;
+		if (currentCursorStyle !== cursorStyle) {
+			vscode.window.activeTextEditor.options = {
+				cursorStyle: cursorStyle
+			};
+		}
+	}
+
+	private _lastInNormalMode: boolean;
+	private _ensureContextInNormalMode(inNormalMode:boolean): void {
+		if (this._lastInNormalMode === inNormalMode) {
+			return;
+		}
+		this._lastInNormalMode = inNormalMode;
+		vscode.commands.executeCommand('setContext', 'vim.inNormalMode', inNormalMode);
+	}
+
+	private _lastHasInput: boolean;
+	private _ensureContextHasInput(hasInput:boolean): void {
+		if (this._lastHasInput === hasInput) {
+			return;
+		}
+		this._lastHasInput = hasInput;
+		vscode.commands.executeCommand('setContext', 'vim.hasInput', hasInput);
+	}
+
+
+
+	// private _updateStatus(): void {
+
+	// 	let hasInput = (this._currentInput.length > 0);
+	// 	if (this._hasInput !== hasInput) {
+	// 		this._hasInput = hasInput;
+	// 		vscode.commands.executeCommand('setContext', 'vim.hasInput', this._hasInput);
+	// 	}
+	// }
+
+
+
+
 }
 
 let _statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
 _statusBar.show();
 let _inputHandler = new InputHandler();
 
-function setPositionAndReveal(line, char) {
-	vscode.window.activeTextEditor.selection = new vscode.Selection(new vscode.Position(line, char), new vscode.Position(line, char));
-	vscode.window.activeTextEditor.revealRange(vscode.window.activeTextEditor.selection, vscode.TextEditorRevealType.Default);
-}
-function activePosition() {
-	return vscode.window.activeTextEditor.selection.active;
-}
-function activeDocument() {
-	return vscode.window.activeTextEditor.document;
-}
+// function setPositionAndReveal(line, char) {
+// 	vscode.window.activeTextEditor.selection = new vscode.Selection(new vscode.Position(line, char), new vscode.Position(line, char));
+// 	vscode.window.activeTextEditor.revealRange(vscode.window.activeTextEditor.selection, vscode.TextEditorRevealType.Default);
+// }
+// function activePosition() {
+// 	return vscode.window.activeTextEditor.selection.active;
+// }
+// function activeDocument() {
+// 	return vscode.window.activeTextEditor.document;
+// }
