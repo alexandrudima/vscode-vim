@@ -51,6 +51,7 @@ class AppendOperator extends Operator {
 
 class VisualOperator extends Operator {
 	public runNormalMode(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
+		ctrl.motionState.anchor = this.pos(ed);
 		ctrl.setMode(Mode.VISUAL);
 		return true;
 	}

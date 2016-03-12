@@ -9,12 +9,14 @@ import {Words, WordCharacters} from './words';
 
 export class MotionState {
 
+	public anchor: Position;
 	public cursorDesiredCharacter: number;
 	public wordCharacterClass: WordCharacters;
 
 	constructor() {
 		this.cursorDesiredCharacter = -1;
 		this.wordCharacterClass = null;
+		this.anchor = null;
 	}
 
 }

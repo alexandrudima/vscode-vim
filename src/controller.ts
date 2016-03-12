@@ -7,6 +7,7 @@
 import {
 	TextEditorCursorStyle,
 	Position,
+	Range,
 	Selection,
 	TextEditor,
 	TextEditorRevealType
@@ -101,12 +102,15 @@ export class Controller implements IController {
 
 	public getStatusText(): string {
 		if (this._currentMode === Mode.VISUAL) {
+			if (this._currentInput) {
+				return 'VIM:> -- VISUAL -- >' + this._currentInput;
+			}
 			// TODO: show line count
 			return 'VIM:> -- VISUAL --';
 		}
 		if (this._currentMode === Mode.NORMAL) {
 			if (this._currentInput) {
-				return 'VIM:>' + this._currentInput;
+				return 'VIM:> -- NORMAL -- >' + this._currentInput;
 			}
 			return 'VIM:> -- NORMAL --';
 		}
@@ -156,7 +160,11 @@ export class Controller implements IController {
 		let motion = Mappings.findMotion(this._currentInput);
 		if (motion) {
 			let newPos = motion.run(editor.document, editor.selection.active, this._motionState);
-			setPositionAndReveal(editor, newPos.line, newPos.character);
+			if (this._currentMode === Mode.VISUAL) {
+				setSelectionAndReveal(editor, this._motionState.anchor, newPos.line, newPos.character);
+			} else {
+				setPositionAndReveal(editor, newPos.line, newPos.character);
+			}
 			this._currentInput = '';
 			return {
 				hasConsumedInput: true,
@@ -182,7 +190,16 @@ export class Controller implements IController {
 	}
 }
 
+function setSelectionAndReveal(editor:TextEditor, anchor:Position, line: number, char: number): void {
+	editor.selection = new Selection(anchor, new Position(line, char));
+	revealPosition(editor, line, char);
+}
+
 function setPositionAndReveal(editor: TextEditor, line: number, char: number): void {
 	editor.selection = new Selection(new Position(line, char), new Position(line, char));
-	editor.revealRange(editor.selection, TextEditorRevealType.Default);
+	revealPosition(editor, line, char);
+}
+
+function revealPosition(editor: TextEditor, line: number, char: number): void {
+	editor.revealRange(new Range(line, char, line, char), TextEditorRevealType.Default);
 }
