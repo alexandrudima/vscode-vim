@@ -60,7 +60,7 @@ class AppendEndOfLineOperator extends Operator {
 
 class DeleteCharUnderCursorOperator extends Operator {
 	public run(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
-		let to = Motions.NextCharacter.repeat(repeatCount).run(this.doc(ed), this.pos(ed), ctrl.motionState);
+		let to = Motions.NextCharacter.repeat(repeatCount > 1, repeatCount).run(this.doc(ed), this.pos(ed), ctrl.motionState);
 		let from = this.pos(ed);
 
 		this.delete(ctrl, ed, false, new Range(from.line, from.character, to.line, to.character));
@@ -111,7 +111,7 @@ abstract class OperatorWithMotion extends Operator {
 			return true;
 		}
 
-		return this._run(ctrl, ed, motion.repeat(repeatCount));
+		return this._run(ctrl, ed, motion.repeat(repeatCount > 1, repeatCount));
 	}
 
 	protected abstract _run(ctrl: IController, ed:TextEditor, motion: Motion): boolean;

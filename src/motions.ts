@@ -22,8 +22,8 @@ export class MotionState {
 export abstract class Motion {
 	public abstract run(doc: TextDocument, pos: Position, state: MotionState): Position;
 
-	public repeat(count: number): Motion {
-		if (count === 1) {
+	public repeat(hasRepeatCount:boolean, count: number): Motion {
+		if (!hasRepeatCount) {
 			return this;
 		}
 		return new RepeatingMotion(this, count);
@@ -183,6 +183,44 @@ class MotionNextWordEnd extends Motion {
 	}
 }
 
+class MotionGoToLineUndefined extends Motion {
+	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
+		// does not do anything
+		return pos;
+	}
+
+	public repeat(hasRepeatCount:boolean, count: number): Motion {
+		if (!hasRepeatCount) {
+			return this;
+		}
+		return new MotionGoToLineDefined(count);
+	}
+}
+
+class MotionGoToLineDefined extends Motion {
+	private _lineNumber:number;
+
+	constructor(lineNumber:number) {
+		super();
+		this._lineNumber = lineNumber;
+	}
+
+	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
+		let line = Math.min(doc.lineCount - 1, Math.max(0, this._lineNumber - 1));
+
+		let lineContent = doc.lineAt(line).text;
+		let character = 0;
+		while (character < lineContent.length) {
+			let ch = lineContent.charAt(character);
+			if (ch !== ' ' && ch !== '\t') {
+				break;
+			}
+			character++;
+		}
+
+		return new Position(line, character);
+	}
+}
 
 export const Motions = {
 	NextCharacter: new MotionNextCharacter(),
@@ -194,4 +232,5 @@ export const Motions = {
 	StartOfLine: new MotionStartOfLine(),
 	NextWordStart: new MotionNextWordStart(),
 	NextWordEnd: new MotionNextWordEnd(),
+	GoToLine: new MotionGoToLineUndefined(),
 };

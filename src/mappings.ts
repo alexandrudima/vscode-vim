@@ -22,6 +22,7 @@ defineMotion('h', Motions.Left);
 defineMotion('j', Motions.Down);
 defineMotion('k', Motions.Up);
 defineMotion('l', Motions.Right);
+defineMotion('G', Motions.GoToLine);
 
 
 const CHAR_TO_OPERATOR: { [char: string]: Operator; } = {};
@@ -57,7 +58,7 @@ export class Mappings {
 		if (!motion) {
 			return null;
 		}
-		return motion.repeat(parsed.repeatCount);
+		return motion.repeat(parsed.hasRepeatCount, parsed.repeatCount);
 	}
 
 	public static findOperator(input: string): IFoundOperator {
@@ -81,17 +82,20 @@ function _parseNumberAndString(input: string): INumberAndString {
 	let repeatCountMatch = input.match(/^([1-9]\d*)/);
 	if (repeatCountMatch) {
 		return {
+			hasRepeatCount: true,
 			repeatCount: parseInt(repeatCountMatch[0], 10),
 			input: input.substr(repeatCountMatch[0].length)
 		};
 	}
 	return {
+		hasRepeatCount: false,
 		repeatCount: 1,
 		input: input
 	}
 }
 
 interface INumberAndString {
+	hasRepeatCount: boolean;
 	repeatCount: number;
 	input: string;
 }
