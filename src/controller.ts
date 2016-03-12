@@ -149,12 +149,18 @@ export class Controller implements IController {
 			let newPos = motion.run(editor.document, editor.selection.active, this._motionState);
 			setPositionAndReveal(editor, newPos.line, newPos.character);
 			this._currentInput = '';
-			return;
+			return {
+				hasConsumedInput: true,
+				executeEditorCommand: null
+			};
 		}
 
 		// is it motion building
 		if (/^[1-9]\d*$/.test(this._currentInput)) {
-			return;
+			return {
+				hasConsumedInput: true,
+				executeEditorCommand: null
+			};
 		}
 
 		// INVALID INPUT - beep!!

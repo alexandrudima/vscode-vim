@@ -138,6 +138,52 @@ class DeleteToOperator extends OperatorWithMotion {
 
 }
 
+class PutOperator extends Operator {
+
+	public run(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
+		let register = ctrl.getDeleteRegister();
+		if (!register) {
+			// No delete register - beep!!
+			return true;
+		}
+
+		let str = this.repeatString(register.content, repeatCount);
+
+		let pos = this.pos(ed);
+		if (!register.isWholeLine) {
+			ed.edit((builder) => {
+				builder.insert(new Position(pos.line, pos.character + 1), str);
+			});
+			return true;
+		}
+
+		let doc = this.doc(ed);
+		let insertLine = pos.line + 1;
+		let insertCharacter = 0;
+
+		if (insertLine >=  doc.lineCount) {
+			// on last line
+			insertLine = doc.lineCount - 1;
+			insertCharacter = doc.lineAt(insertLine).text.length;
+			str = '\n' + str;
+		}
+
+		ed.edit((builder) => {
+			builder.insert(new Position(insertLine, insertCharacter), str);
+		});
+
+		return true;
+	}
+
+	protected repeatString(str:string, repeatCount:number): string {
+		let result = '';
+		for (let i = 0; i < repeatCount; i++) {
+			result += str;
+		}
+		return result;
+	}
+}
+
 export const Operators = {
 	Insert: new InsertOperator(),
 	Append: new AppendOperator(),
@@ -145,4 +191,5 @@ export const Operators = {
 	DeleteCharUnderCursor: new DeleteCharUnderCursorOperator(),
 	DeleteTo: new DeleteToOperator(),
 	DeleteLine: new DeleteLineOperator(),
+	Put: new PutOperator(),
 };

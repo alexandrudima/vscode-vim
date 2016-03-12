@@ -33,6 +33,7 @@ defineOperator('i', Operators.Insert);
 defineOperator('a', Operators.Append);
 defineOperator('A', Operators.AppendEndOfLine);
 defineOperator('d', Operators.DeleteTo);
+defineOperator('p', Operators.Put);
 
 
 const CHAR_TO_COMMAND: { [char: string]: string; } = {};
