@@ -282,6 +282,21 @@ class ReplaceOperator extends Operator {
 	}
 }
 
+class ReplaceModeOperator extends Operator {
+
+	public runNormalMode(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
+		ctrl.setMode(Mode.REPLACE);
+		return true;
+	}
+
+	public runVisualMode(ctrl: IController, ed:TextEditor, args: string): boolean {
+		this.delete(ctrl, ed, false, this.sel(ed));
+		ctrl.setMode(Mode.INSERT);
+		return true;
+	}
+
+}
+
 class ChangeOperator extends OperatorWithMotion {
 
 	protected _runNormalMode(ctrl: IController, ed:TextEditor, motion: Motion): boolean {
@@ -325,4 +340,5 @@ export const Operators = {
 	Put: new PutOperator(),
 	Replace: new ReplaceOperator(),
 	Change: new ChangeOperator(),
+	ReplaceMode: new ReplaceModeOperator(),
 };

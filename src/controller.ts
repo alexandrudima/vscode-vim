@@ -143,20 +143,35 @@ export class Controller implements IController {
 			};
 		}
 		if (this._currentMode === Mode.REPLACE) {
-			throw new Error('TODO!');
+			let pos = editor.selection.active;
+			editor.edit((builder) => {
+				builder.replace(new Range(pos.line, pos.character, pos.line, pos.character + 1), text);
+			}).then(() => {
+				setPositionAndReveal(editor, pos.line, pos.character + 1);
+			});
+
+			return {
+				hasConsumedInput: true,
+				executeEditorCommand: null
+			};
 		}
 		this._currentInput += text;
 		return this._interpretNormalModeInput(editor);
 	}
 
-	public replacePrevChar(text: string, replaceCharCnt: number): boolean {
+	public replacePrevChar(editor: TextEditor, text: string, replaceCharCnt: number): boolean {
 		if (this._currentMode !== Mode.NORMAL && this._currentMode !== Mode.REPLACE) {
 			return false;
 		}
 		if (this._currentMode === Mode.REPLACE) {
-			throw new Error('TODO!');
+			let pos = editor.selection.active;
+			editor.edit((builder) => {
+				builder.replace(new Range(pos.line, pos.character - replaceCharCnt, pos.line, pos.character), text);
+			});
+
+			return true;
 		}
-		// Not supporting IME building at this time
+		// Not supporting IME building in NORMAL mode
 		return true;
 	}
 

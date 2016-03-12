@@ -37,6 +37,7 @@ defineOperator('A', Operators.AppendEndOfLine);
 defineOperator('d', Operators.DeleteTo);
 defineOperator('p', Operators.Put);
 defineOperator('r', Operators.Replace);
+defineOperator('R', Operators.ReplaceMode);
 defineOperator('c', Operators.Change);
 defineOperator('v', Operators.Visual);
 

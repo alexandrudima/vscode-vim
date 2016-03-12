@@ -141,7 +141,7 @@ class VimExt {
 	}
 
 	public replacePrevChar(text: string, replaceCharCnt: number): void {
-		if (this._controller.replacePrevChar(text, replaceCharCnt)) {
+		if (this._controller.replacePrevChar(vscode.window.activeTextEditor, text, replaceCharCnt)) {
 			this._ensureState();
 			return;
 		}
