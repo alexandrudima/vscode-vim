@@ -131,6 +131,7 @@ export class Controller implements IController {
 	private _interpretNormalModeInput(editor: TextEditor): ITypeResult {
 		let command = Mappings.findCommand(this._currentInput);
 		if (command) {
+			this._currentInput = '';
 			return {
 				hasConsumedInput: true,
 				executeEditorCommand: command
