@@ -4,7 +4,6 @@
  *--------------------------------------------------------------------------------------------*/
 'use strict';
 
-import {TextEditor} from 'vscode';
 import {MotionState, Motion} from './motions';
 
 export enum Mode {
@@ -13,7 +12,6 @@ export enum Mode {
 }
 
 export interface IController {
-	editor: TextEditor;
 	motionState: MotionState;
 
 	setMode(mode: Mode): void;

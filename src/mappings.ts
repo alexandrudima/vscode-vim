@@ -4,6 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 'use strict';
 
+import {TextEditor} from 'vscode';
 import {Motion, Motions} from './motions';
 import {Operator, Operators} from './operators';
 import {IController} from './common';
@@ -34,7 +35,7 @@ defineOperator('A', Operators.AppendEndOfLine);
 defineOperator('d', Operators.DeleteTo);
 
 export interface IFoundOperator {
-	(controller: IController): boolean;
+	(controller: IController, editor:TextEditor): boolean;
 }
 
 export class Mappings {
@@ -54,9 +55,9 @@ export class Mappings {
 		if (!operator) {
 			return null;
 		}
-		return (controller: IController) => {
+		return (controller: IController, editor:TextEditor) => {
 			let operatorArgs = parsed.input.substr(1);
-			return operator.run(controller, parsed.repeatCount, operatorArgs);
+			return operator.run(controller, editor, parsed.repeatCount, operatorArgs);
 		};
 	}
 

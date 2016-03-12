@@ -10,52 +10,52 @@ import {Mode, IController} from './common';
 
 export abstract class Operator {
 
-	public abstract run(controller: IController, repeatCount: number, args: string): boolean;
+	public abstract run(controller: IController, ed:TextEditor, repeatCount: number, args: string): boolean;
 
-	protected doc(controller: IController): TextDocument {
-		return controller.editor.document;
+	protected doc(ed:TextEditor): TextDocument {
+		return ed.document;
 	}
 
-	protected pos(controller: IController): Position {
-		return controller.editor.selection.active;
+	protected pos(ed:TextEditor): Position {
+		return ed.selection.active;
 	}
 
-	protected setPosReveal(controller: IController, line: number, char: number): void {
-		controller.editor.selection = new Selection(new Position(line, char), new Position(line, char));
-		controller.editor.revealRange(controller.editor.selection, TextEditorRevealType.Default);
+	protected setPosReveal(ed:TextEditor, line: number, char: number): void {
+		ed.selection = new Selection(new Position(line, char), new Position(line, char));
+		ed.revealRange(ed.selection, TextEditorRevealType.Default);
 	}
 }
 
 class InsertOperator extends Operator {
-	public run(ctrl: IController, repeatCount: number, args: string): boolean {
+	public run(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
 		ctrl.setMode(Mode.INSERT);
 		return true;
 	}
 }
 
 class AppendOperator extends Operator {
-	public run(ctrl: IController, repeatCount: number, args: string): boolean {
-		let newPos = Motions.Right.run(this.doc(ctrl), this.pos(ctrl), ctrl.motionState);
-		this.setPosReveal(ctrl, newPos.line, newPos.character);
+	public run(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
+		let newPos = Motions.Right.run(this.doc(ed), this.pos(ed), ctrl.motionState);
+		this.setPosReveal(ed, newPos.line, newPos.character);
 		ctrl.setMode(Mode.INSERT);
 		return true;
 	}
 }
 
 class AppendEndOfLineOperator extends Operator {
-	public run(ctrl: IController, repeatCount: number, args: string): boolean {
-		let newPos = Motions.EndOfLine.run(this.doc(ctrl), this.pos(ctrl), ctrl.motionState);
-		this.setPosReveal(ctrl, newPos.line, newPos.character);
+	public run(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
+		let newPos = Motions.EndOfLine.run(this.doc(ed), this.pos(ed), ctrl.motionState);
+		this.setPosReveal(ed, newPos.line, newPos.character);
 		ctrl.setMode(Mode.INSERT);
 		return true;
 	}
 }
 
 class DeleteCharUnderCursorOperator extends Operator {
-	public run(ctrl: IController, repeatCount: number, args: string): boolean {
+	public run(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
 		console.log('TODO: repeatCnt');
-		let pos = this.pos(ctrl);
-		ctrl.editor.edit((builder) => {
+		let pos = this.pos(ed);
+		ed.edit((builder) => {
 			builder.delete(new Range(pos.line, pos.character, pos.line, pos.character + 1));
 		});
 		return true;
@@ -63,7 +63,7 @@ class DeleteCharUnderCursorOperator extends Operator {
 }
 
 abstract class OperatorWithMotion extends Operator {
-	public run(ctrl: IController, repeatCount: number, args: string): boolean {
+	public run(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
 		let motion = ctrl.findMotion(args);
 		if (!motion) {
 
@@ -76,18 +76,18 @@ abstract class OperatorWithMotion extends Operator {
 			return true;
 		}
 
-		return this._run(ctrl, motion.repeat(repeatCount));
+		return this._run(ctrl, ed, motion.repeat(repeatCount));
 	}
 
-	protected abstract _run(ctrl: IController, motion: Motion): boolean;
+	protected abstract _run(ctrl: IController, ed:TextEditor, motion: Motion): boolean;
 }
 
 class DeleteToOperator extends OperatorWithMotion {
 
-	protected _run(ctrl: IController, motion: Motion): boolean {
-		let to = motion.run(this.doc(ctrl), this.pos(ctrl), ctrl.motionState);
-		let from = this.pos(ctrl);
-		ctrl.editor.edit((builder) => {
+	protected _run(ctrl: IController, ed:TextEditor, motion: Motion): boolean {
+		let to = motion.run(this.doc(ed), this.pos(ed), ctrl.motionState);
+		let from = this.pos(ed);
+		ed.edit((builder) => {
 			builder.delete(new Range(from.line, from.character, to.line, to.character));
 		});
 		return true;

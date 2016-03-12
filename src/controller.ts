@@ -28,7 +28,6 @@ export class Controller implements IController {
 	private _motionState: MotionState;
 
 	// Only available while in `type` method
-	public editor: TextEditor;
 	public get motionState(): MotionState { return this._motionState; }
 	public findMotion(input: string): Motion { return Mappings.findMotion(input); }
 
@@ -105,10 +104,8 @@ export class Controller implements IController {
 		if (this._currentMode !== Mode.NORMAL) {
 			return false;
 		}
-		this.editor = editor;
 		this._currentInput += text;
-		this._interpretNormalModeInput();
-		this.editor = null;
+		this._interpretNormalModeInput(editor);
 		return true;
 	}
 
@@ -120,10 +117,10 @@ export class Controller implements IController {
 		return true;
 	}
 
-	private _interpretNormalModeInput(): void {
+	private _interpretNormalModeInput(editor: TextEditor): void {
 		let operator = Mappings.findOperator(this._currentInput);
 		if (operator) {
-			if (operator(this)) {
+			if (operator(this, editor)) {
 				this._currentInput = '';
 			}
 			return;
@@ -131,8 +128,8 @@ export class Controller implements IController {
 
 		let motion = Mappings.findMotion(this._currentInput);
 		if (motion) {
-			let newPos = motion.run(this.editor.document, this.editor.selection.active, this._motionState);
-			setPositionAndReveal(this.editor, newPos.line, newPos.character);
+			let newPos = motion.run(editor.document, editor.selection.active, this._motionState);
+			setPositionAndReveal(editor, newPos.line, newPos.character);
 			this._currentInput = '';
 			return;
 		}
