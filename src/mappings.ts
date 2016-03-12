@@ -38,6 +38,7 @@ defineOperator('d', Operators.DeleteTo);
 defineOperator('p', Operators.Put);
 defineOperator('r', Operators.Replace);
 defineOperator('c', Operators.Change);
+defineOperator('v', Operators.Visual);
 
 
 const CHAR_TO_COMMAND: { [char: string]: string; } = {};
@@ -73,7 +74,7 @@ export class Mappings {
 		}
 		return (controller: IController, editor:TextEditor) => {
 			let operatorArgs = parsed.input.substr(1);
-			return operator.run(controller, editor, parsed.repeatCount, operatorArgs);
+			return operator.runNormalMode(controller, editor, parsed.repeatCount, operatorArgs);
 		};
 	}
 

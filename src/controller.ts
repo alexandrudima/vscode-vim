@@ -87,49 +87,52 @@ export class Controller implements IController {
 	}
 
 	public getCursorStyle(): TextEditorCursorStyle {
+		if (this._currentMode === Mode.VISUAL) {
+			return TextEditorCursorStyle.Block;
+		}
 		if (this._currentMode === Mode.NORMAL) {
 			if (/^([1-9]\d*)?(r|c)/.test(this._currentInput)) {
 				return TextEditorCursorStyle.Underline;
-			} else {
-				return TextEditorCursorStyle.Block;
 			}
-		} else {
-			return TextEditorCursorStyle.Line;
+			return TextEditorCursorStyle.Block;
 		}
+		return TextEditorCursorStyle.Line;
 	}
 
 	public getStatusText(): string {
+		if (this._currentMode === Mode.VISUAL) {
+			// TODO: show line count
+			return 'VIM:> -- VISUAL --';
+		}
 		if (this._currentMode === Mode.NORMAL) {
 			if (this._currentInput) {
 				return 'VIM:>' + this._currentInput;
-			} else {
-				return 'VIM:> -- NORMAL --';
 			}
-		} else {
-			return 'VIM:> -- INSERT --';
+			return 'VIM:> -- NORMAL --';
 		}
+		return 'VIM:> -- INSERT --';
 	}
 
 	public type(editor: TextEditor, text: string): ITypeResult {
-		if (this._currentMode !== Mode.NORMAL) {
+		if (this._currentMode !== Mode.NORMAL && this._currentMode !== Mode.VISUAL) {
 			return {
 				hasConsumedInput: false,
 				executeEditorCommand: null
 			};
 		}
 		this._currentInput += text;
-		return this._interpretNormalModeInput(editor);
+		return this._interpretNormalOrVisualModeInput(editor);
 	}
 
 	public replacePrevChar(text: string, replaceCharCnt: number): boolean {
-		if (this._currentMode !== Mode.NORMAL) {
+		if (this._currentMode !== Mode.NORMAL && this._currentMode !== Mode.VISUAL) {
 			return false;
 		}
 		// Not supporting IME building at this time
 		return true;
 	}
 
-	private _interpretNormalModeInput(editor: TextEditor): ITypeResult {
+	private _interpretNormalOrVisualModeInput(editor: TextEditor): ITypeResult {
 		let command = Mappings.findCommand(this._currentInput);
 		if (command) {
 			this._currentInput = '';

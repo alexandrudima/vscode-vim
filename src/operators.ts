@@ -10,7 +10,7 @@ import {Mode, IController, DeleteRegister} from './common';
 
 export abstract class Operator {
 
-	public abstract run(controller: IController, ed:TextEditor, repeatCount: number, args: string): boolean;
+	public abstract runNormalMode(controller: IController, ed:TextEditor, repeatCount: number, args: string): boolean;
 
 	protected doc(ed:TextEditor): TextDocument {
 		return ed.document;
@@ -34,14 +34,14 @@ export abstract class Operator {
 }
 
 class InsertOperator extends Operator {
-	public run(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
+	public runNormalMode(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
 		ctrl.setMode(Mode.INSERT);
 		return true;
 	}
 }
 
 class AppendOperator extends Operator {
-	public run(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
+	public runNormalMode(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
 		let newPos = Motions.Right.run(this.doc(ed), this.pos(ed), ctrl.motionState);
 		this.setPosReveal(ed, newPos.line, newPos.character);
 		ctrl.setMode(Mode.INSERT);
@@ -49,8 +49,15 @@ class AppendOperator extends Operator {
 	}
 }
 
+class VisualOperator extends Operator {
+	public runNormalMode(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
+		ctrl.setMode(Mode.VISUAL);
+		return true;
+	}
+}
+
 class AppendEndOfLineOperator extends Operator {
-	public run(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
+	public runNormalMode(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
 		let newPos = Motions.EndOfLine.run(this.doc(ed), this.pos(ed), ctrl.motionState);
 		this.setPosReveal(ed, newPos.line, newPos.character);
 		ctrl.setMode(Mode.INSERT);
@@ -59,7 +66,7 @@ class AppendEndOfLineOperator extends Operator {
 }
 
 class DeleteCharUnderCursorOperator extends Operator {
-	public run(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
+	public runNormalMode(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
 		let to = Motions.NextCharacter.repeat(repeatCount > 1, repeatCount).run(this.doc(ed), this.pos(ed), ctrl.motionState);
 		let from = this.pos(ed);
 
@@ -70,7 +77,7 @@ class DeleteCharUnderCursorOperator extends Operator {
 }
 
 class DeleteLineOperator extends Operator {
-	public run(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
+	public runNormalMode(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
 		let pos = this.pos(ed);
 		let doc = this.doc(ed);
 
@@ -98,7 +105,7 @@ class DeleteLineOperator extends Operator {
 }
 
 abstract class OperatorWithMotion extends Operator {
-	public run(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
+	public runNormalMode(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
 		let motion = ctrl.findMotion(args);
 		if (!motion) {
 
@@ -119,12 +126,12 @@ abstract class OperatorWithMotion extends Operator {
 
 class DeleteToOperator extends OperatorWithMotion {
 
-	public run(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
+	public runNormalMode(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
 		if (args === 'd') {
 			// dd
-			return Operators.DeleteLine.run(ctrl, ed, repeatCount, args);
+			return Operators.DeleteLine.runNormalMode(ctrl, ed, repeatCount, args);
 		}
-		return super.run(ctrl, ed, repeatCount, args);
+		return super.runNormalMode(ctrl, ed, repeatCount, args);
 	}
 
 	protected _run(ctrl: IController, ed:TextEditor, motion: Motion): boolean {
@@ -140,7 +147,7 @@ class DeleteToOperator extends OperatorWithMotion {
 
 class PutOperator extends Operator {
 
-	public run(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
+	public runNormalMode(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
 		let register = ctrl.getDeleteRegister();
 		if (!register) {
 			// No delete register - beep!!
@@ -178,7 +185,7 @@ class PutOperator extends Operator {
 
 class ReplaceOperator extends Operator {
 
-	public run(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
+	public runNormalMode(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
 		if (args.length === 0) {
 			// input not ready
 			return false;
@@ -225,6 +232,7 @@ function repeatString(str:string, repeatCount:number): string {
 
 export const Operators = {
 	Insert: new InsertOperator(),
+	Visual: new VisualOperator(),
 	Append: new AppendOperator(),
 	AppendEndOfLine: new AppendEndOfLineOperator(),
 	DeleteCharUnderCursor: new DeleteCharUnderCursorOperator(),

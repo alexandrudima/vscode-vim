@@ -8,7 +8,8 @@ import {MotionState, Motion} from './motions';
 
 export enum Mode {
 	INSERT,
-	NORMAL
+	NORMAL,
+	VISUAL
 }
 
 export class DeleteRegister {
