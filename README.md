@@ -36,7 +36,7 @@ And it's fun to write an extension, even if it's just a sample! :)
 
 > Note: You need to run from VS Code source, as the 0.10.12 version is not yet released.
 
-Disclaimer: I am not a vim user, I tried out vimtutor and added as many concepts to this sample until I kept finding gaps in the VS Code API. Here are the things I've added (that I learned about with vimtutor):
+Disclaimer: I am not a vim user, I tried out vimtutor, lesson by lesson, and added as many concepts to this sample until I kept finding gaps in the VS Code API. Here are the things I've added (my understanding of their functioning from vimtutor):
 
 Motions:
 * `w` - next word start
