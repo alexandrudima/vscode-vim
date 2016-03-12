@@ -16,6 +16,6 @@ export interface IController {
 	editor: TextEditor;
 	motionState: MotionState;
 
-	setMode(mode:Mode): void;
-	findMotion(input:string): Motion;
+	setMode(mode: Mode): void;
+	findMotion(input: string): Motion;
 }

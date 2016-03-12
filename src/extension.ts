@@ -70,7 +70,7 @@ class InputHandler /*implements IController*/ {
 	// public get editor(): vscode.TextEditor { return vscode.window.activeTextEditor; }
 	// public findMotion(input:string): Motion { return Mappings.findMotion(input); }
 
-	private _controller:Controller;
+	private _controller: Controller;
 
 	constructor() {
 		this._controller = new Controller({
@@ -109,7 +109,7 @@ class InputHandler /*implements IController*/ {
 		this._ensureState();
 	}
 
-	public type(text:string): void {
+	public type(text: string): void {
 		if (this._controller.type(text)) {
 			this._ensureState();
 			return;
@@ -119,7 +119,7 @@ class InputHandler /*implements IController*/ {
 		});
 	}
 
-	public replacePrevChar(text:string, replaceCharCnt:number): void {
+	public replacePrevChar(text: string, replaceCharCnt: number): void {
 		if (this._controller.replacePrevChar(text, replaceCharCnt)) {
 			this._ensureState();
 			return;
@@ -145,7 +145,7 @@ class InputHandler /*implements IController*/ {
 	}
 
 	private _lastStatusText: string;
-	private _ensureStatusText(text:string): void {
+	private _ensureStatusText(text: string): void {
 		if (this._lastStatusText === text) {
 			return;
 		}
@@ -153,7 +153,7 @@ class InputHandler /*implements IController*/ {
 		_statusBar.text = this._lastStatusText;
 	}
 
-	private _ensureCursorStyle(cursorStyle:vscode.TextEditorCursorStyle): void {
+	private _ensureCursorStyle(cursorStyle: vscode.TextEditorCursorStyle): void {
 		let currentCursorStyle = vscode.window.activeTextEditor.options.cursorStyle;
 		if (currentCursorStyle !== cursorStyle) {
 			vscode.window.activeTextEditor.options = {
@@ -163,7 +163,7 @@ class InputHandler /*implements IController*/ {
 	}
 
 	private _lastInNormalMode: boolean;
-	private _ensureContextInNormalMode(inNormalMode:boolean): void {
+	private _ensureContextInNormalMode(inNormalMode: boolean): void {
 		if (this._lastInNormalMode === inNormalMode) {
 			return;
 		}
@@ -172,7 +172,7 @@ class InputHandler /*implements IController*/ {
 	}
 
 	private _lastHasInput: boolean;
-	private _ensureContextHasInput(hasInput:boolean): void {
+	private _ensureContextHasInput(hasInput: boolean): void {
 		if (this._lastHasInput === hasInput) {
 			return;
 		}

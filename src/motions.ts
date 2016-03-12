@@ -20,9 +20,9 @@ export class MotionState {
 }
 
 export abstract class Motion {
-	public abstract run(doc:TextDocument, pos:Position, state:MotionState): Position;
+	public abstract run(doc: TextDocument, pos: Position, state: MotionState): Position;
 
-	public repeat(count:number): Motion {
+	public repeat(count: number): Motion {
 		if (count === 1) {
 			return this;
 		}
@@ -35,13 +35,13 @@ class RepeatingMotion extends Motion {
 	private _actual: Motion;
 	private _repeatCount: number;
 
-	constructor(actual:Motion, repeatCount:number) {
+	constructor(actual: Motion, repeatCount: number) {
 		super();
 		this._actual = actual;
 		this._repeatCount = repeatCount;
 	}
 
-	public run(doc:TextDocument, pos:Position, state:MotionState): Position {
+	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
 		for (var cnt = 0; cnt < this._repeatCount; cnt++) {
 			pos = this._actual.run(doc, pos, state);
 		}
@@ -50,7 +50,7 @@ class RepeatingMotion extends Motion {
 }
 
 class MotionLeft extends Motion {
-	public run(doc:TextDocument, pos:Position, state:MotionState): Position {
+	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
 		let line = pos.line;
 
 		if (pos.character > 0) {
@@ -63,10 +63,10 @@ class MotionLeft extends Motion {
 }
 
 class MotionDown extends Motion {
-	public run(doc:TextDocument, pos:Position, state:MotionState): Position {
+	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
 		let line = pos.line;
 
-		state.cursorDesiredCharacter = (state.cursorDesiredCharacter === -1 ?  pos.character : state.cursorDesiredCharacter);
+		state.cursorDesiredCharacter = (state.cursorDesiredCharacter === -1 ? pos.character : state.cursorDesiredCharacter);
 
 		if (line < doc.lineCount - 1) {
 			line++;
@@ -78,10 +78,10 @@ class MotionDown extends Motion {
 }
 
 class MotionUp extends Motion {
-	public run(doc:TextDocument, pos:Position, state:MotionState): Position {
+	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
 		let line = pos.line;
 
-		state.cursorDesiredCharacter = (state.cursorDesiredCharacter === -1 ?  pos.character : state.cursorDesiredCharacter);
+		state.cursorDesiredCharacter = (state.cursorDesiredCharacter === -1 ? pos.character : state.cursorDesiredCharacter);
 
 		if (line > 0) {
 			line--;
@@ -93,7 +93,7 @@ class MotionUp extends Motion {
 }
 
 class MotionRight extends Motion {
-	public run(doc:TextDocument, pos:Position, state:MotionState): Position {
+	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
 		let line = pos.line;
 		let maxCharacter = doc.lineAt(line).text.length;
 
@@ -107,19 +107,19 @@ class MotionRight extends Motion {
 }
 
 class MotionEndOfLine extends Motion {
-	public run(doc:TextDocument, pos:Position, state:MotionState): Position {
+	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
 		return new Position(pos.line, doc.lineAt(pos.line).text.length);
 	}
 }
 
 class MotionStartOfLine extends Motion {
-	public run(doc:TextDocument, pos:Position, state:MotionState): Position {
+	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
 		return new Position(pos.line, 0);
 	}
 }
 
 class MotionNextWordStart extends Motion {
-	public run(doc:TextDocument, pos:Position, state:MotionState): Position {
+	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
 		let lineContent = doc.lineAt(pos.line).text;
 
 		if (pos.character >= lineContent.length - 1) {
@@ -152,7 +152,7 @@ class MotionNextWordStart extends Motion {
 }
 
 class MotionNextWordEnd extends Motion {
-	public run(doc:TextDocument, pos:Position, state:MotionState): Position {
+	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
 		let lineContent = doc.lineAt(pos.line).text;
 
 		if (pos.character >= lineContent.length - 1) {

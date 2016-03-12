@@ -28,8 +28,8 @@ export interface IWord {
 
 export class Words {
 
-	public static createWordCharacters(wordSeparators:string): WordCharacters {
-		let result:CharacterClass[] = [];
+	public static createWordCharacters(wordSeparators: string): WordCharacters {
+		let result: CharacterClass[] = [];
 
 		// Make array fast for ASCII text
 		for (var chCode = 0; chCode < 256; chCode++) {
@@ -46,7 +46,7 @@ export class Words {
 		return result;
 	}
 
-	public static findNextWord(doc: TextDocument, pos: Position, wordCharacterClass:WordCharacters): IWord {
+	public static findNextWord(doc: TextDocument, pos: Position, wordCharacterClass: WordCharacters): IWord {
 
 		let lineContent = doc.lineAt(pos.line).text;
 		let wordType = WordType.NONE;
@@ -80,7 +80,7 @@ export class Words {
 		return null;
 	}
 
-	private static _findStartOfWord(lineContent:string, wordCharacterClass:WordCharacters, wordType:WordType, startIndex:number): number {
+	private static _findStartOfWord(lineContent: string, wordCharacterClass: WordCharacters, wordType: WordType, startIndex: number): number {
 		for (let chIndex = startIndex; chIndex >= 0; chIndex--) {
 			let chCode = lineContent.charCodeAt(chIndex);
 			let chClass = (wordCharacterClass[chCode] || CharacterClass.REGULAR);
@@ -98,7 +98,7 @@ export class Words {
 		return 0;
 	}
 
-	private static _createWord(lineContent:string, wordType:WordType, start:number, end:number): IWord {
+	private static _createWord(lineContent: string, wordType: WordType, start: number, end: number): IWord {
 		// console.log('WORD ==> ' + start + ' => ' + end + ':::: <<<' + lineContent.substring(start, end) + '>>>');
 		return { start: start, end: end, wordType: wordType };
 	}

@@ -9,8 +9,6 @@ import {
 	TextEditorCursorStyle,
 	Position,
 	Selection,
-	Range,
-	TextDocument,
 	TextEditor,
 	TextEditorRevealType
 } from 'vscode';
@@ -18,7 +16,6 @@ import {
 import {MotionState, Motion} from './motions';
 import {Mode, IController} from './common';
 import {Mappings} from './mappings';
-// import {Operator, Operators} from './operators';
 
 export interface IDriver {
 	getActiveTextEditor(): TextEditor;
@@ -26,16 +23,16 @@ export interface IDriver {
 
 export class Controller implements IController {
 
-	private _driver:IDriver;
+	private _driver: IDriver;
 	private _currentMode: Mode;
 	private _currentInput: string;
 	private _motionState: MotionState;
 
 	public get motionState(): MotionState { return this._motionState; }
 	public get editor(): TextEditor { return this._driver.getActiveTextEditor(); }
-	public findMotion(input:string): Motion { return Mappings.findMotion(input); }
+	public findMotion(input: string): Motion { return Mappings.findMotion(input); }
 
-	constructor(driver:IDriver, wordSeparators:string) {
+	constructor(driver: IDriver, wordSeparators: string) {
 		this._driver = driver;
 		this._motionState = new MotionState();
 		this._motionState.wordCharacterClass = Words.createWordCharacters(wordSeparators);
@@ -43,7 +40,7 @@ export class Controller implements IController {
 		// this._ensureNormalModePosition();
 	}
 
-	public setWordSeparators(wordSeparators:string): void {
+	public setWordSeparators(wordSeparators: string): void {
 		this._motionState.wordCharacterClass = Words.createWordCharacters(wordSeparators);
 	}
 
@@ -83,7 +80,7 @@ export class Controller implements IController {
 		return this._currentMode;
 	}
 
-	public setMode(newMode:Mode): void {
+	public setMode(newMode: Mode): void {
 		if (newMode !== this._currentMode) {
 			this._currentMode = newMode;
 			this._motionState.cursorDesiredCharacter = -1; // uninitialized
@@ -112,7 +109,7 @@ export class Controller implements IController {
 		}
 	}
 
-	public type(text:string): boolean {
+	public type(text: string): boolean {
 		if (this._currentMode !== Mode.NORMAL) {
 			return false;
 		}
@@ -121,7 +118,7 @@ export class Controller implements IController {
 		return true;
 	}
 
-	public replacePrevChar(text:string, replaceCharCnt:number): boolean {
+	public replacePrevChar(text: string, replaceCharCnt: number): boolean {
 		if (this._currentMode !== Mode.NORMAL) {
 			return false;
 		}
@@ -164,7 +161,7 @@ export class Controller implements IController {
 	}
 }
 
-function setPositionAndReveal(editor:TextEditor, line:number, char:number): void {
+function setPositionAndReveal(editor: TextEditor, line: number, char: number): void {
 	editor.selection = new Selection(new Position(line, char), new Position(line, char));
 	editor.revealRange(editor.selection, TextEditorRevealType.Default);
 }
