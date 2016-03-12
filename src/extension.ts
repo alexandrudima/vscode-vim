@@ -4,6 +4,7 @@ import * as vscode from 'vscode';
 
 import {Words} from './words';
 import {MotionState, Motion, Motions} from './motions';
+import {Mode, IController, Operator, Operators} from './operators';
 
 export function deactivate() {
 }
@@ -37,21 +38,24 @@ export function activate(context: vscode.ExtensionContext) {
 	// });
 };
 
-let NORMAL_MODE = 0, INSERT_MODE = 1;
+// let NORMAL_MODE = 0, INSERT_MODE = 1;
 
-class InputHandler {
+class InputHandler implements IController {
 
-	private _currentMode: number;
+	private _currentMode: Mode;
 	private _currentInput: string;
 	private hasInput: boolean;
 	private _motionState: MotionState;
 
-	private CHAR_TO_OPERATOR: {[char:string]:(repeatCnt:number, args:string)=>void;}
+	private CHAR_TO_OPERATOR: {[char:string]:Operator;}
 	private CHAR_TO_MOTION: {[char:string]:Motion;}
+
+	public get motionState(): MotionState { return this._motionState; }
+	public get editor(): vscode.TextEditor { return vscode.window.activeTextEditor; }
 
 	constructor() {
 		this._motionState = new MotionState();
-		this._setMode(NORMAL_MODE);
+		this.setMode(Mode.NORMAL_MODE);
 		vscode.window.onDidChangeActiveTextEditor((textEditor) => {
 			textEditor.options = {
 				cursorStyle: this.getCursorStyle()
@@ -73,7 +77,7 @@ class InputHandler {
 		if (!vscode.window.activeTextEditor) {
 			return;
 		}
-		if (this._currentMode !== NORMAL_MODE) {
+		if (this._currentMode !== Mode.NORMAL_MODE) {
 			return;
 		}
 		let sel = vscode.window.activeTextEditor.selection;
@@ -100,10 +104,10 @@ class InputHandler {
 	}
 
 	public goToNormalMode(): void {
-		if (this._currentMode === NORMAL_MODE) {
+		if (this._currentMode === Mode.NORMAL_MODE) {
 			return;
 		}
-		this._setMode(NORMAL_MODE);
+		this.setMode(Mode.NORMAL_MODE);
 	}
 
 	public clearInput(): void {
@@ -111,7 +115,7 @@ class InputHandler {
 		this._updateStatus();
 	}
 
-	private _setMode(newMode:number): void {
+	public setMode(newMode:Mode): void {
 		if (newMode !== this._currentMode) {
 			this._currentMode = newMode;
 			this._motionState.cursorDesiredCharacter = -1; // uninitialized
@@ -123,7 +127,7 @@ class InputHandler {
 				};
 			}
 
-			let inNormalMode = (this._currentMode === NORMAL_MODE);
+			let inNormalMode = (this._currentMode === Mode.NORMAL_MODE);
 			vscode.commands.executeCommand('setContext', 'vim.inNormalMode', inNormalMode);
 			this._ensureNormalModePosition();
 		}
@@ -131,7 +135,7 @@ class InputHandler {
 	}
 
 	public type(text:string): void {
-		if (this._currentMode === NORMAL_MODE) {
+		if (this._currentMode === Mode.NORMAL_MODE) {
 			this._currentInput += text;
 			this._interpretNormalModeInput();
 			this._updateStatus();
@@ -152,7 +156,7 @@ class InputHandler {
 	}
 
 	public replacePrevChar(text:string, replaceCharCnt:number): void {
-		if (this._currentMode === NORMAL_MODE) {
+		if (this._currentMode === Mode.NORMAL_MODE) {
 			console.log('TODO: default mode replacePrevChar: ', arguments);
 		} else {
 			vscode.commands.executeCommand('default:replacePrevChar', {
@@ -163,7 +167,7 @@ class InputHandler {
 	}
 
 	private getCursorStyle(): vscode.TextEditorCursorStyle {
-		if (this._currentMode === NORMAL_MODE) {
+		if (this._currentMode === Mode.NORMAL_MODE) {
 			return vscode.TextEditorCursorStyle.Block;
 		} else {
 			return vscode.TextEditorCursorStyle.Line;
@@ -171,7 +175,7 @@ class InputHandler {
 	}
 
 	private getStatusText(): string {
-		if (this._currentMode === NORMAL_MODE) {
+		if (this._currentMode === Mode.NORMAL_MODE) {
 			if (this._currentInput) {
 				return 'VIM:>' + this._currentInput;
 			} else {
@@ -185,7 +189,7 @@ class InputHandler {
 	private _interpretNormalModeInput(): void {
 		if (!this.CHAR_TO_MOTION) {
 			this.CHAR_TO_MOTION = {};
-			let defineMotion = (char, motion) => {
+			let defineMotion = (char:string, motion:Motion) => {
 				this.CHAR_TO_MOTION[char] = motion;
 			};
 
@@ -201,47 +205,15 @@ class InputHandler {
 
 		if (!this.CHAR_TO_OPERATOR) {
 			this.CHAR_TO_OPERATOR = {};
-			let defineOperator = (char:string, run:(repeatCnt:number, args:string)=>void) => {
-				this.CHAR_TO_OPERATOR[char] = run;
-			};
-			let defineOperatorWithMotion = (char:string, run:(motion:Motion)=>void) => {
-				defineOperator(char, (repeatCnt, args) => {
-					console.log('char: ' + char);
-					console.log('args: ' + args);
-					let motion = this.findMotion(args);
-					if (!motion) {
-						return false;
-					}
-					console.log('I HAVE MOTION!');
-					return run(motion.repeat(repeatCnt));
-				});
+			let defineOperator = (char:string, operator:Operator) => {
+				this.CHAR_TO_OPERATOR[char] = operator;
 			};
 
-			defineOperator('x', (repeatCnt) => {
-				this._deleteCharUnderCursor(repeatCnt);
-				return true;
-			});
-			defineOperator('i', (repeatCnt) => {
-				this._setMode(INSERT_MODE);
-				return true;
-			});
-			defineOperator('a', (repeatCnt) => {
-				let newPos = Motions.Right.run(activeDocument(), activePosition(), this._motionState);
-				setPositionAndReveal(newPos.line, newPos.character);
-				this._setMode(INSERT_MODE);
-				return true;
-			});
-			defineOperator('A', (repeatCnt) => {
-				let newPos = Motions.EndOfLine.run(activeDocument(), activePosition(), this._motionState);
-				setPositionAndReveal(newPos.line, newPos.character);
-				this._setMode(INSERT_MODE);
-				return true;
-			});
-
-			defineOperatorWithMotion('d', (motion) => {
-				this._deleteTo(motion.run(activeDocument(), activePosition(), this._motionState));
-				return true;
-			});
+			defineOperator('x', Operators.DeleteCharUnderCursor);
+			defineOperator('i', Operators.Insert);
+			defineOperator('a', Operators.Append);
+			defineOperator('A', Operators.AppendEndOfLine);
+			defineOperator('d', Operators.DeleteTo);
 		}
 
 		let operator = this.findOperator(this._currentInput);
@@ -277,22 +249,7 @@ class InputHandler {
 		this._currentInput = '';
 	}
 
-	private _deleteCharUnderCursor(repeatCnt:number): void {
-		console.log('TODO: repeatCnt');
-		let pos = activePosition();
-		activeEditor().edit((builder) => {
-			builder.delete(new vscode.Range(pos.line, pos.character, pos.line, pos.character + 1));
-		});
-	}
-
-	private _deleteTo(toPos:vscode.Position): void {
-		let pos = activePosition();
-		activeEditor().edit((builder) => {
-			builder.delete(new vscode.Range(pos.line, pos.character, toPos.line, toPos.character));
-		});
-	}
-
-	private findMotion(input:string):Motion {
+	public findMotion(input:string): Motion {
 		let parsed = InputHandler._parseNumberAndString(input);
 		let motion = this.CHAR_TO_MOTION[parsed.input];
 		if (!motion) {
@@ -310,7 +267,7 @@ class InputHandler {
 		return {
 			run: () => {
 				let operatorArgs = parsed.input.substr(1);
-				return operator(parsed.repeatCount, operatorArgs);
+				return operator.run(this, parsed.repeatCount, operatorArgs);
 			}
 		};
 	}
