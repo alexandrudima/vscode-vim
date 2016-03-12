@@ -23,19 +23,17 @@ export interface IDriver {
 
 export class Controller implements IController {
 
-	private _driver: IDriver;
 	private _currentMode: Mode;
 	private _currentInput: string;
 	private _motionState: MotionState;
 
+	// Only available while in `type` method
+	public editor: TextEditor;
 	public get motionState(): MotionState { return this._motionState; }
-	public get editor(): TextEditor { return this._driver.getActiveTextEditor(); }
 	public findMotion(input: string): Motion { return Mappings.findMotion(input); }
 
-	constructor(driver: IDriver, wordSeparators: string) {
-		this._driver = driver;
+	constructor() {
 		this._motionState = new MotionState();
-		this.setWordSeparators(wordSeparators);
 		this.setMode(Mode.NORMAL);
 	}
 
@@ -43,12 +41,8 @@ export class Controller implements IController {
 		this._motionState.wordCharacterClass = Words.createWordCharacters(wordSeparators);
 	}
 
-	public ensureNormalModePosition(): void {
+	public ensureNormalModePosition(editor: TextEditor): void {
 		if (this._currentMode !== Mode.NORMAL) {
-			return;
-		}
-		let editor = this._driver.getActiveTextEditor();
-		if (!editor) {
 			return;
 		}
 		let sel = editor.selection;
@@ -107,12 +101,14 @@ export class Controller implements IController {
 		}
 	}
 
-	public type(text: string): boolean {
+	public type(editor: TextEditor, text: string): boolean {
 		if (this._currentMode !== Mode.NORMAL) {
 			return false;
 		}
+		this.editor = editor;
 		this._currentInput += text;
 		this._interpretNormalModeInput();
+		this.editor = null;
 		return true;
 	}
 
@@ -125,11 +121,6 @@ export class Controller implements IController {
 	}
 
 	private _interpretNormalModeInput(): void {
-		let editor = this._driver.getActiveTextEditor();
-		if (!editor) {
-			return;
-		}
-
 		let operator = Mappings.findOperator(this._currentInput);
 		if (operator) {
 			if (operator(this)) {
@@ -140,8 +131,8 @@ export class Controller implements IController {
 
 		let motion = Mappings.findMotion(this._currentInput);
 		if (motion) {
-			let newPos = motion.run(editor.document, editor.selection.active, this._motionState);
-			setPositionAndReveal(editor, newPos.line, newPos.character);
+			let newPos = motion.run(this.editor.document, this.editor.selection.active, this._motionState);
+			setPositionAndReveal(this.editor, newPos.line, newPos.character);
 			this._currentInput = '';
 			return;
 		}

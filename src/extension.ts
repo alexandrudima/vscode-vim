@@ -68,11 +68,7 @@ class VimExt {
 		this._hasInput = new ContextKey('vim.hasInput');
 		this._statusBar = new StatusBar();
 
-		this._controller = new Controller({
-			getActiveTextEditor: () => {
-				return vscode.window.activeTextEditor;
-			}
-		}, getConfiguredWordSeparators())
+		this._controller = new Controller()
 
 		vscode.window.onDidChangeActiveTextEditor((textEditor) => {
 			if (!textEditor) {
@@ -81,16 +77,20 @@ class VimExt {
 			this._ensureState();
 		});
 
-		// TODO: do it better!
-		this._controller.ensureNormalModePosition();
-		vscode.window.onDidChangeTextEditorSelection((e) => {
-			this._controller.ensureNormalModePosition();
-			this._ensureState();
-		});
+		var ensurePosition = () => {
+			if (!vscode.window.activeTextEditor) {
+				return;
+			}
+			this._controller.ensureNormalModePosition(vscode.window.activeTextEditor);
+		};
+		ensurePosition();
+		vscode.window.onDidChangeTextEditorSelection(ensurePosition);
 
-		vscode.workspace.onDidChangeConfiguration(() => {
+		var ensureConfig = () => {
 			this._controller.setWordSeparators(getConfiguredWordSeparators());
-		});
+		};
+		ensureConfig();
+		vscode.workspace.onDidChangeConfiguration(ensureConfig);
 
 		this._ensureState();
 	}
@@ -106,7 +106,7 @@ class VimExt {
 	}
 
 	public type(text: string): void {
-		if (this._controller.type(text)) {
+		if (vscode.window.activeTextEditor && this._controller.type(vscode.window.activeTextEditor, text)) {
 			this._ensureState();
 			return;
 		}
