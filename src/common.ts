@@ -11,9 +11,22 @@ export enum Mode {
 	NORMAL
 }
 
+export class DeleteRegister {
+	public isWholeLine:boolean;
+	public content:string;
+
+	constructor(isWholeLine:boolean, content:string) {
+		this.isWholeLine = isWholeLine;
+		this.content = content;
+	}
+}
+
 export interface IController {
 	motionState: MotionState;
 
 	setMode(mode: Mode): void;
 	findMotion(input: string): Motion;
+
+	setDeleteRegister(register:DeleteRegister): void;
+	getDeleteRegister(): DeleteRegister;
 }

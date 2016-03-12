@@ -6,7 +6,7 @@
 
 import {Position, Selection, Range, TextDocument, TextEditor, TextEditorRevealType} from 'vscode';
 import {MotionState, Motion, Motions} from './motions';
-import {Mode, IController} from './common';
+import {Mode, IController, DeleteRegister} from './common';
 
 export abstract class Operator {
 
@@ -23,6 +23,13 @@ export abstract class Operator {
 	protected setPosReveal(ed:TextEditor, line: number, char: number): void {
 		ed.selection = new Selection(new Position(line, char), new Position(line, char));
 		ed.revealRange(ed.selection, TextEditorRevealType.Default);
+	}
+
+	protected delete(ctrl:IController, ed:TextEditor, isWholeLine:boolean, range:Range): void {
+		ctrl.setDeleteRegister(new DeleteRegister(isWholeLine, ed.document.getText(range)));
+		ed.edit((builder) => {
+			builder.delete(range);
+		});
 	}
 }
 
@@ -55,9 +62,9 @@ class DeleteCharUnderCursorOperator extends Operator {
 	public run(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
 		let to = Motions.NextCharacter.repeat(repeatCount).run(this.doc(ed), this.pos(ed), ctrl.motionState);
 		let from = this.pos(ed);
-		ed.edit((builder) => {
-			builder.delete(new Range(from.line, from.character, to.line, to.character));
-		});
+
+		this.delete(ctrl, ed, false, new Range(from.line, from.character, to.line, to.character));
+
 		return true;
 	}
 }
@@ -84,9 +91,7 @@ class DeleteLineOperator extends Operator {
 			}
 		}
 
-		ed.edit((builder) => {
-			builder.delete(new Range(fromLine, fromCharacter, toLine, toCharacter));
-		});
+		this.delete(ctrl, ed, true, new Range(fromLine, fromCharacter, toLine, toCharacter));
 
 		return true;
 	}
@@ -125,9 +130,9 @@ class DeleteToOperator extends OperatorWithMotion {
 	protected _run(ctrl: IController, ed:TextEditor, motion: Motion): boolean {
 		let to = motion.run(this.doc(ed), this.pos(ed), ctrl.motionState);
 		let from = this.pos(ed);
-		ed.edit((builder) => {
-			builder.delete(new Range(from.line, from.character, to.line, to.character));
-		});
+
+		this.delete(ctrl, ed, false, new Range(from.line, from.character, to.line, to.character));
+
 		return true;
 	}
 

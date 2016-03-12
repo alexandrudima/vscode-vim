@@ -14,7 +14,7 @@ import {
 
 import {Words} from './words';
 import {MotionState, Motion} from './motions';
-import {Mode, IController} from './common';
+import {Mode, IController, DeleteRegister} from './common';
 import {Mappings} from './mappings';
 
 export interface ITypeResult {
@@ -28,12 +28,16 @@ export class Controller implements IController {
 	private _currentInput: string;
 	private _motionState: MotionState;
 
-	// Only available while in `type` method
 	public get motionState(): MotionState { return this._motionState; }
 	public findMotion(input: string): Motion { return Mappings.findMotion(input); }
 
+	private _deleteRegister:DeleteRegister;
+	public setDeleteRegister(register:DeleteRegister): void { this._deleteRegister = register; }
+	public getDeleteRegister(): DeleteRegister { return this._deleteRegister; }
+
 	constructor() {
 		this._motionState = new MotionState();
+		this._deleteRegister = null;
 		this.setMode(Mode.NORMAL);
 	}
 
