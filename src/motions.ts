@@ -191,23 +191,15 @@ class MotionGoToLineUndefined extends Motion {
 
 	public repeat(hasRepeatCount:boolean, count: number): Motion {
 		if (!hasRepeatCount) {
-			return this;
+			return Motions.GoToLastLine;
 		}
 		return new MotionGoToLineDefined(count);
 	}
 }
 
-class MotionGoToLineDefined extends Motion {
-	private _lineNumber:number;
+abstract class GoToLineMotion extends Motion {
 
-	constructor(lineNumber:number) {
-		super();
-		this._lineNumber = lineNumber;
-	}
-
-	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
-		let line = Math.min(doc.lineCount - 1, Math.max(0, this._lineNumber - 1));
-
+	protected firstNonWhitespaceChar(doc: TextDocument, line:number): number {
 		let lineContent = doc.lineAt(line).text;
 		let character = 0;
 		while (character < lineContent.length) {
@@ -217,8 +209,35 @@ class MotionGoToLineDefined extends Motion {
 			}
 			character++;
 		}
+		return character;
+	}
 
-		return new Position(line, character);
+}
+
+class MotionGoToFirstLine extends GoToLineMotion {
+	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
+		return new Position(0, this.firstNonWhitespaceChar(doc, 0));
+	}
+}
+
+class MotionGoToLastLine extends GoToLineMotion {
+	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
+		let lastLine = doc.lineCount - 1;
+		return new Position(lastLine, this.firstNonWhitespaceChar(doc, lastLine));
+	}
+}
+
+class MotionGoToLineDefined extends GoToLineMotion {
+	private _lineNumber:number;
+
+	constructor(lineNumber:number) {
+		super();
+		this._lineNumber = lineNumber;
+	}
+
+	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
+		let line = Math.min(doc.lineCount - 1, Math.max(0, this._lineNumber - 1));
+		return new Position(line, this.firstNonWhitespaceChar(doc, line));
 	}
 }
 
@@ -233,4 +252,6 @@ export const Motions = {
 	NextWordStart: new MotionNextWordStart(),
 	NextWordEnd: new MotionNextWordEnd(),
 	GoToLine: new MotionGoToLineUndefined(),
+	GoToFirstLine: new MotionGoToFirstLine(),
+	GoToLastLine: new MotionGoToLastLine(),
 };

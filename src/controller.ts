@@ -30,6 +30,7 @@ export class Controller implements IController {
 
 	public get motionState(): MotionState { return this._motionState; }
 	public findMotion(input: string): Motion { return Mappings.findMotion(input); }
+	public isMotionPrefix(input: string): boolean { return Mappings.isMotionPrefix(input); }
 
 	private _deleteRegister:DeleteRegister;
 	public setDeleteRegister(register:DeleteRegister): void { this._deleteRegister = register; }
@@ -161,7 +162,7 @@ export class Controller implements IController {
 		}
 
 		// is it motion building
-		if (/^[1-9]\d*$/.test(this._currentInput)) {
+		if (this.isMotionPrefix(this._currentInput)) {
 			return {
 				hasConsumedInput: true,
 				executeEditorCommand: null

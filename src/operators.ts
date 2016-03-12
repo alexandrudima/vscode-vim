@@ -103,7 +103,7 @@ abstract class OperatorWithMotion extends Operator {
 		if (!motion) {
 
 			// is it motion building
-			if (args.length === 0 || /^[1-9]\d*$/.test(args)) {
+			if (ctrl.isMotionPrefix(args)) {
 				return false;
 			}
 

@@ -26,6 +26,7 @@ export interface IController {
 
 	setMode(mode: Mode): void;
 	findMotion(input: string): Motion;
+	isMotionPrefix(input: string): boolean;
 
 	setDeleteRegister(register:DeleteRegister): void;
 	getDeleteRegister(): DeleteRegister;

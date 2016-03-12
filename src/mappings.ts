@@ -23,6 +23,7 @@ defineMotion('j', Motions.Down);
 defineMotion('k', Motions.Up);
 defineMotion('l', Motions.Right);
 defineMotion('G', Motions.GoToLine);
+defineMotion('gg', Motions.GoToFirstLine);
 
 
 const CHAR_TO_OPERATOR: { [char: string]: Operator; } = {};
@@ -54,16 +55,19 @@ export class Mappings {
 
 	public static findMotion(input: string): Motion {
 		let parsed = _parseNumberAndString(input);
-		let motion = CHAR_TO_MOTION[parsed.input];
+		let motion = CHAR_TO_MOTION[parsed.input.substr(0, 1)];
 		if (!motion) {
-			return null;
+			motion = CHAR_TO_MOTION[parsed.input.substr(0, 2)];
+			if (!motion) {
+				return null;
+			}
 		}
 		return motion.repeat(parsed.hasRepeatCount, parsed.repeatCount);
 	}
 
 	public static findOperator(input: string): IFoundOperator {
 		let parsed = _parseNumberAndString(input);
-		let operator = CHAR_TO_OPERATOR[parsed.input.charAt(0)];
+		let operator = CHAR_TO_OPERATOR[parsed.input.substr(0, 1)];
 		if (!operator) {
 			return null;
 		}
@@ -75,6 +79,16 @@ export class Mappings {
 
 	public static findCommand(input: string): string {
 		return CHAR_TO_COMMAND[input] || null;
+	}
+
+	public static isMotionPrefix(input: string): boolean {
+		if (input.length === 0) {
+			return true;
+		}
+		if (input === 'g') {
+			return true;
+		}
+		return /^[1-9]\d*$/.test(input);
 	}
 }
 
