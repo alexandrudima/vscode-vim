@@ -184,36 +184,36 @@ InputHandler.prototype._interpretNormalModeInput = function() {
 			this.OPERATORS.push({
 				char: char,
 				run: run
-				// ,
-				// canRepeat: canRepeat,
-				// takesFurtherArgs: takesFurtherArgs
 			});
 		};
 		var defineOperatorWithMotion = (char, run) => {
-			defineOperator(char, (args) => {
+			defineOperator(char, (repeatCnt, args) => {
+				console.log('char: ' + char);
+				console.log('args: ' + args);
 				var motion = findMotion(args);
 				if (!motion) {
 					return false;
 				}
-				return run(motion);
+				console.log('I HAVE MOTION!');
+				return run(createRepeatedMotion(motion, repeatCnt));
 			});
 		};
 		
-		defineOperator('x', () => {
-			this._deleteCharUnderCursor();
+		defineOperator('x', (repeatCnt) => {
+			this._deleteCharUnderCursor(repeatCnt);
 			return true;
 		});
-		defineOperator('i', () => {
+		defineOperator('i', (repeatCnt) => {
 			this._setMode(INSERT_MODE);
 			return true;
 		});
-		defineOperator('a', () => {
-			var newPos = this._motion_cursor_right(activePosition());
+		defineOperator('a', (repeatCnt) => {
+			var newPos = this._motion_right(activePosition());
 			setPositionAndReveal(newPos.line, newPos.character);
 			this._setMode(INSERT_MODE);
 			return true;
 		});
-		defineOperator('A', () => {
+		defineOperator('A', (repeatCnt) => {
 			var newPos = this._motion_end_of_line(activePosition());
 			setPositionAndReveal(newPos.line, newPos.character);
 			this._setMode(INSERT_MODE);
@@ -221,7 +221,7 @@ InputHandler.prototype._interpretNormalModeInput = function() {
 		});
 		
 		defineOperatorWithMotion('d', (motion) => {
-			this._deleteTo(motion.run());
+			this._deleteTo(motion.run(activePosition()));
 			return true;
 		});
 		
@@ -245,10 +245,10 @@ InputHandler.prototype._interpretNormalModeInput = function() {
 		defineMotion('e', (pos) => this._motion_e(pos));
 		defineMotion('$', (pos) => this._motion_end_of_line(pos));
 		defineMotion('0', (pos) => this._motion_start_of_line(pos));
-		defineMotion('h', (pos) => this._motion_cursor_left(pos));
-		defineMotion('j', (pos) => this._motion_cursor_down(pos));
-		defineMotion('k', (pos) => this._motion_cursor_up(pos));
-		defineMotion('l', (pos) => this._motion_cursor_right(pos));
+		defineMotion('h', (pos) => this._motion_left(pos));
+		defineMotion('j', (pos) => this._motion_down(pos));
+		defineMotion('k', (pos) => this._motion_up(pos));
+		defineMotion('l', (pos) => this._motion_right(pos));
 		
 		this.CHAR_TO_MOTION = {};
 		for (var i = 0; i < this.MOTIONS.length; i++) {
@@ -257,56 +257,95 @@ InputHandler.prototype._interpretNormalModeInput = function() {
 		}
 	}
 	
-	var findMotion = (input) => {
-		var repeatCount = 1;
-		var stringInputPart = input;
-
-		var repeatCountMatch = stringInputPart.match(/^([1-9]\d*)/);
+	var parseNumberString = (input) => {
+		var repeatCountMatch = input.match(/^([1-9]\d*)/);
 		if (repeatCountMatch) {
-			repeatCount = parseInt(repeatCountMatch[0], 10);
-			stringInputPart = stringInputPart.substr(repeatCountMatch[0].length);
-		}
-		
-		var motion = this.CHAR_TO_MOTION[stringInputPart];
-		if (!motion) {
-			return null;
+			return {
+				repeatCount: parseInt(repeatCountMatch[0], 10),
+				input: input.substr(repeatCountMatch[0].length)
+			};
 		}
 		return {
-			run: () => {
-				var newPos = activePosition();
+			repeatCount: 1,
+			input: input
+		}
+	};
+	
+	var createRepeatedMotion = (motion, repeatCount) => {
+		return {
+			run: (pos) => {
 				for (var cnt = 0; cnt < repeatCount; cnt++) {
-					newPos = motion.run(newPos);
+					pos = motion.run(pos);
 				}
-				return newPos;
+				return pos;
 			}
 		}
 	};
 	
-	var operator = this.CHAR_TO_OPERATOR[this._currentInput[0]];
+	var findMotion = (input) => {
+		var parsed = parseNumberString(input);
+		var motion = this.CHAR_TO_MOTION[parsed.input];
+		if (!motion) {
+			return null;
+		}
+		return createRepeatedMotion(motion, parsed.repeatCount);
+	};
+	
+	var findOperator = (input) => {
+		var parsed = parseNumberString(input);
+		var operator = this.CHAR_TO_OPERATOR[parsed.input.charAt(0)];
+		if (!operator) {
+			return null;
+		}
+		return {
+			run: () => {
+				var operatorArgs = parsed.input.substr(1);
+				return operator.run(parsed.repeatCount, operatorArgs);
+			}
+		};
+	};
+	
+	var operator = findOperator(this._currentInput);
 	if (operator) {
-		if (operator.run(this._currentInput.substr(1))) {
+		if (operator.run()) {
+			console.log('OPERATOR CLEARS INPUT');
 			this._currentInput = '';
 		}
 		return;
 	}
 	
+	// var operator = this.CHAR_TO_OPERATOR[this._currentInput[0]];
+	// if (operator) {
+	// 	if (operator.run(this._currentInput.substr(1))) {
+	// 		this._currentInput = '';
+	// 	}
+	// 	return;
+	// }
+	
 	var motion = findMotion(this._currentInput);
 	if (motion) {
-		var newPos = motion.run();
+		var newPos = motion.run(activePosition());
 		setPositionAndReveal(newPos.line, newPos.character);
 		this._currentInput = '';
 		return;
 	}
+	
+	console.log('FELL THROUGH: ' + this._currentInput);
 	
 	// is it motion building
 	if (/^[1-9]\d*$/.test(this._currentInput)) {
 		return;
 	}
 	
+	// // is it operator
+	// if (/^[1-9]\d*$/.test(this._currentInput)) {
+	// 	return;
+	// }
+	
 	// beep!!
 	this._currentInput = '';
 };
-InputHandler.prototype._motion_cursor_left = function(pos) {
+InputHandler.prototype._motion_left = function(pos) {
 	var doc = activeDocument();
 	var line = pos.line;
 	
@@ -316,7 +355,7 @@ InputHandler.prototype._motion_cursor_left = function(pos) {
 	}
 	return pos;
 };
-InputHandler.prototype._motion_cursor_down = function(pos) {
+InputHandler.prototype._motion_down = function(pos) {
 	var doc = activeDocument();
 	var line = pos.line;
 	
@@ -328,7 +367,7 @@ InputHandler.prototype._motion_cursor_down = function(pos) {
 	}
 	return pos;
 };
-InputHandler.prototype._motion_cursor_up = function(pos) {
+InputHandler.prototype._motion_up = function(pos) {
 	var doc = activeDocument();
 	var line = pos.line;
 	
@@ -340,7 +379,7 @@ InputHandler.prototype._motion_cursor_up = function(pos) {
 	}
 	return pos;
 };
-InputHandler.prototype._motion_cursor_right = function(pos) {
+InputHandler.prototype._motion_right = function(pos) {
 	var doc = activeDocument();
 	var line = pos.line;
 	var maxCharacter = doc.lineAt(line).text.length;
@@ -351,7 +390,8 @@ InputHandler.prototype._motion_cursor_right = function(pos) {
 	}
 	return pos;
 };
-InputHandler.prototype._deleteCharUnderCursor = function() {
+InputHandler.prototype._deleteCharUnderCursor = function(repeatCnt) {
+	console.log('TODO: repeatCnt');
 	var pos = activePosition();
 	activeEditor().edit((builder) => {
 		builder.delete(new vscode.Range(pos.line, pos.character, pos.line, pos.character + 1));
