@@ -1,14 +1,19 @@
 {
-	"name": "vim-sample",
-	"publisher": "alexdima",
+	"name": "vim",
+	"displayName": "vim",
+	"description": "vim sample extension",
 	"version": "0.0.1",
+	"publisher": "alexdima",
 	"engines": {
-		"vscode": "^0.10.11"
+		"vscode": "^0.10.12"
 	},
+	"categories": [
+		"Other"
+	],
 	"activationEvents": [
 		"*"
 	],
-	"main": "./main.js",
+	"main": "./out/src/extension",
 	"contributes": {
 		"keybindings": [{
 			"command": "vim.goToNormalMode",
@@ -19,5 +24,14 @@
 			"key": "Escape",
 			"when": "editorTextFocus && vim.hasInput"
 		}]
+	},
+	"scripts": {
+		"vscode:prepublish": "node ./node_modules/vscode/bin/compile",
+		"compile": "node ./node_modules/vscode/bin/compile -watch -p ./",
+		"postinstall": "node ./node_modules/vscode/bin/install"
+	},
+	"devDependencies": {
+		"typescript": "^1.8.5",
+		"vscode": "^0.11.0"
 	}
 }
