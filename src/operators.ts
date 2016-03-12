@@ -6,19 +6,7 @@
 
 import {Position, Selection, Range, TextDocument, TextEditor, TextEditorRevealType} from 'vscode';
 import {MotionState, Motion, Motions} from './motions';
-
-export enum Mode {
-	INSERT_MODE,
-	NORMAL_MODE
-}
-
-export interface IController {
-	editor: TextEditor;
-	motionState: MotionState;
-
-	setMode(mode:Mode);
-	findMotion(input:string):Motion;
-}
+import {Mode, IController} from './common';
 
 export abstract class Operator {
 

@@ -1,10 +1,15 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 'use strict';
 
 import * as vscode from 'vscode';
 
 import {Words} from './words';
 import {MotionState, Motion, Motions} from './motions';
-import {Mode, IController, Operator, Operators} from './operators';
+import {Operator, Operators} from './operators';
+import {Mode, IController} from './common';
 
 export function deactivate() {
 }
@@ -40,6 +45,34 @@ export function activate(context: vscode.ExtensionContext) {
 
 // let NORMAL_MODE = 0, INSERT_MODE = 1;
 
+const CHAR_TO_OPERATOR: {[char:string]:Operator;} = {};
+const CHAR_TO_MOTION: {[char:string]:Motion;} = {};
+(function() {
+	let defineMotion = (char:string, motion:Motion) => {
+		CHAR_TO_MOTION[char] = motion;
+	};
+
+	defineMotion('w', Motions.NextWordStart);
+	defineMotion('e', Motions.NextWordEnd);
+	defineMotion('$', Motions.EndOfLine);
+	defineMotion('0', Motions.StartOfLine);
+	defineMotion('h', Motions.Left);
+	defineMotion('j', Motions.Down);
+	defineMotion('k', Motions.Up);
+	defineMotion('l', Motions.Right);
+})();
+(function() {
+	let defineOperator = (char:string, operator:Operator) => {
+		CHAR_TO_OPERATOR[char] = operator;
+	};
+
+	defineOperator('x', Operators.DeleteCharUnderCursor);
+	defineOperator('i', Operators.Insert);
+	defineOperator('a', Operators.Append);
+	defineOperator('A', Operators.AppendEndOfLine);
+	defineOperator('d', Operators.DeleteTo);
+})();
+
 class InputHandler implements IController {
 
 	private _currentMode: Mode;
@@ -47,8 +80,7 @@ class InputHandler implements IController {
 	private hasInput: boolean;
 	private _motionState: MotionState;
 
-	private CHAR_TO_OPERATOR: {[char:string]:Operator;}
-	private CHAR_TO_MOTION: {[char:string]:Motion;}
+
 
 	public get motionState(): MotionState { return this._motionState; }
 	public get editor(): vscode.TextEditor { return vscode.window.activeTextEditor; }
@@ -187,34 +219,7 @@ class InputHandler implements IController {
 	}
 
 	private _interpretNormalModeInput(): void {
-		if (!this.CHAR_TO_MOTION) {
-			this.CHAR_TO_MOTION = {};
-			let defineMotion = (char:string, motion:Motion) => {
-				this.CHAR_TO_MOTION[char] = motion;
-			};
 
-			defineMotion('w', Motions.NextWordStart);
-			defineMotion('e', Motions.NextWordEnd);
-			defineMotion('$', Motions.EndOfLine);
-			defineMotion('0', Motions.StartOfLine);
-			defineMotion('h', Motions.Left);
-			defineMotion('j', Motions.Down);
-			defineMotion('k', Motions.Up);
-			defineMotion('l', Motions.Right);
-		}
-
-		if (!this.CHAR_TO_OPERATOR) {
-			this.CHAR_TO_OPERATOR = {};
-			let defineOperator = (char:string, operator:Operator) => {
-				this.CHAR_TO_OPERATOR[char] = operator;
-			};
-
-			defineOperator('x', Operators.DeleteCharUnderCursor);
-			defineOperator('i', Operators.Insert);
-			defineOperator('a', Operators.Append);
-			defineOperator('A', Operators.AppendEndOfLine);
-			defineOperator('d', Operators.DeleteTo);
-		}
 
 		let operator = this.findOperator(this._currentInput);
 		if (operator) {
@@ -251,7 +256,7 @@ class InputHandler implements IController {
 
 	public findMotion(input:string): Motion {
 		let parsed = InputHandler._parseNumberAndString(input);
-		let motion = this.CHAR_TO_MOTION[parsed.input];
+		let motion = CHAR_TO_MOTION[parsed.input];
 		if (!motion) {
 			return null;
 		}
@@ -260,7 +265,7 @@ class InputHandler implements IController {
 
 	private findOperator(input:string):{run:()=>void;} {
 		let parsed = InputHandler._parseNumberAndString(input);
-		let operator = this.CHAR_TO_OPERATOR[parsed.input.charAt(0)];
+		let operator = CHAR_TO_OPERATOR[parsed.input.charAt(0)];
 		if (!operator) {
 			return null;
 		}
