@@ -27,10 +27,10 @@ export interface IWord {
 }
 
 export class Words {
-	
+
 	public static createWordCharacters(wordSeparators:string): WordCharacters {
 		let result:CharacterClass[] = [];
-	
+
 		// Make array fast for ASCII text
 		for (var chCode = 0; chCode < 256; chCode++) {
 			result[chCode] = CharacterClass.REGULAR;
@@ -42,20 +42,20 @@ export class Words {
 
 		result[' '.charCodeAt(0)] = CharacterClass.WHITESPACE;
 		result['\t'.charCodeAt(0)] = CharacterClass.WHITESPACE;
-		
+
 		return result;
 	}
-	
+
 	public static findNextWord(doc: TextDocument, pos: Position, wordCharacterClass:WordCharacters): IWord {
-		
+
 		let lineContent = doc.lineAt(pos.line).text;
 		let wordType = WordType.NONE;
 		let len = lineContent.length;
-		
+
 		for (let chIndex = pos.character; chIndex < len; chIndex++) {
 			let chCode = lineContent.charCodeAt(chIndex);
 			let chClass = (wordCharacterClass[chCode] || CharacterClass.REGULAR);
-			
+
 			if (chClass === CharacterClass.REGULAR) {
 				if (wordType === WordType.SEPARATOR) {
 					return this._createWord(lineContent, wordType, this._findStartOfWord(lineContent, wordCharacterClass, wordType, chIndex - 1), chIndex);
