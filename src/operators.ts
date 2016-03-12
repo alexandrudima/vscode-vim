@@ -53,10 +53,10 @@ class AppendEndOfLineOperator extends Operator {
 
 class DeleteCharUnderCursorOperator extends Operator {
 	public run(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
-		console.log('TODO: repeatCnt');
-		let pos = this.pos(ed);
+		let to = Motions.NextCharacter.repeat(repeatCount).run(this.doc(ed), this.pos(ed), ctrl.motionState);
+		let from = this.pos(ed);
 		ed.edit((builder) => {
-			builder.delete(new Range(pos.line, pos.character, pos.line, pos.character + 1));
+			builder.delete(new Range(from.line, from.character, to.line, to.character));
 		});
 		return true;
 	}

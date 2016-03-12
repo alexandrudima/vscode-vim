@@ -49,6 +49,17 @@ class RepeatingMotion extends Motion {
 	}
 }
 
+class MotionNextCharacter extends Motion {
+	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
+		if (pos.character === doc.lineAt(pos.line).text.length) {
+			// on last character
+			return ((pos.line + 1 < doc.lineCount) ? new Position(pos.line + 1, 0) : pos);
+		}
+
+		return new Position(pos.line, pos.character + 1);
+	}
+}
+
 class MotionLeft extends Motion {
 	public run(doc: TextDocument, pos: Position, state: MotionState): Position {
 		let line = pos.line;
@@ -174,6 +185,7 @@ class MotionNextWordEnd extends Motion {
 
 
 export const Motions = {
+	NextCharacter: new MotionNextCharacter(),
 	Left: new MotionLeft(),
 	Down: new MotionDown(),
 	Up: new MotionUp(),
