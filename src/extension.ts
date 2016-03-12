@@ -77,7 +77,31 @@ class VimExt {
 			this._ensureState();
 		});
 
-		vscode.window.onDidChangeTextEditorSelection(() => this._ensureState());
+		vscode.window.onDidChangeTextEditorSelection((e) => {
+			if (this._controller.getMode() === Mode.NORMAL) {
+				// a selection in the editor brings us to visual mode
+				let goToVisualMode = false;
+				if (e.selections.length > 1) {
+					goToVisualMode = true;
+				} else {
+					goToVisualMode = !e.selections[0].isEmpty;
+				}
+
+				if (goToVisualMode) {
+					this._controller.setMode(Mode.VISUAL);
+				}
+			} else if (this._controller.getMode() === Mode.VISUAL) {
+				// a collapsed selection in the editor brings us to normal mode
+				let goToNormalMode = false;
+				if (e.selections.length === 1) {
+					goToNormalMode = e.selections[0].isEmpty;
+				}
+				if (goToNormalMode) {
+					this._controller.setMode(Mode.NORMAL);
+				}
+			}
+			this._ensureState();
+		});
 
 		var ensureConfig = () => {
 			this._controller.setWordSeparators(getConfiguredWordSeparators());
@@ -141,7 +165,6 @@ class VimExt {
 	}
 
 	private _ensurePosition(): void {
-		console.log('ensure position called!');
 		if (!vscode.window.activeTextEditor) {
 			return;
 		}
