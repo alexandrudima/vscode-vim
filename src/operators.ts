@@ -147,7 +147,7 @@ class PutOperator extends Operator {
 			return true;
 		}
 
-		let str = this.repeatString(register.content, repeatCount);
+		let str = repeatString(register.content, repeatCount);
 
 		let pos = this.pos(ed);
 		if (!register.isWholeLine) {
@@ -174,14 +174,38 @@ class PutOperator extends Operator {
 
 		return true;
 	}
+}
 
-	protected repeatString(str:string, repeatCount:number): string {
-		let result = '';
-		for (let i = 0; i < repeatCount; i++) {
-			result += str;
+class ReplaceOperator extends Operator {
+
+	public run(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
+		if (args.length === 0) {
+			// input not ready
+			return false;
 		}
-		return result;
+
+		let doc = this.doc(ed);
+		let pos = this.pos(ed);
+		let toCharacter = pos.character + repeatCount;
+		if (toCharacter > doc.lineAt(pos).text.length) {
+			// invalid replace (beep!)
+			return true;
+		}
+
+		ed.edit((builder) => {
+			builder.replace(new Range(pos.line, pos.character, pos.line, toCharacter), repeatString(args, repeatCount));
+		});
+
+		return true;
 	}
+}
+
+function repeatString(str:string, repeatCount:number): string {
+	let result = '';
+	for (let i = 0; i < repeatCount; i++) {
+		result += str;
+	}
+	return result;
 }
 
 export const Operators = {
@@ -192,4 +216,5 @@ export const Operators = {
 	DeleteTo: new DeleteToOperator(),
 	DeleteLine: new DeleteLineOperator(),
 	Put: new PutOperator(),
+	Replace: new ReplaceOperator(),
 };
