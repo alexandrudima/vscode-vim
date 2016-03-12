@@ -200,6 +200,21 @@ class ReplaceOperator extends Operator {
 	}
 }
 
+class ChangeOperator extends OperatorWithMotion {
+
+	protected _run(ctrl: IController, ed:TextEditor, motion: Motion): boolean {
+		let to = motion.run(this.doc(ed), this.pos(ed), ctrl.motionState);
+		let from = this.pos(ed);
+
+		this.delete(ctrl, ed, false, new Range(from.line, from.character, to.line, to.character));
+
+		ctrl.setMode(Mode.INSERT);
+
+		return true;
+	}
+
+}
+
 function repeatString(str:string, repeatCount:number): string {
 	let result = '';
 	for (let i = 0; i < repeatCount; i++) {
@@ -217,4 +232,5 @@ export const Operators = {
 	DeleteLine: new DeleteLineOperator(),
 	Put: new PutOperator(),
 	Replace: new ReplaceOperator(),
+	Change: new ChangeOperator(),
 };

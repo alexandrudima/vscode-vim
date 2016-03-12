@@ -87,7 +87,7 @@ export class Controller implements IController {
 
 	public getCursorStyle(): TextEditorCursorStyle {
 		if (this._currentMode === Mode.NORMAL) {
-			if (/([1-9]\d*)?r/.test(this._currentInput)) {
+			if (/^([1-9]\d*)?(r|c)/.test(this._currentInput)) {
 				return TextEditorCursorStyle.Underline;
 			} else {
 				return TextEditorCursorStyle.Block;

@@ -35,6 +35,7 @@ defineOperator('A', Operators.AppendEndOfLine);
 defineOperator('d', Operators.DeleteTo);
 defineOperator('p', Operators.Put);
 defineOperator('r', Operators.Replace);
+defineOperator('c', Operators.Change);
 
 
 const CHAR_TO_COMMAND: { [char: string]: string; } = {};
