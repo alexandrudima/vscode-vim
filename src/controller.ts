@@ -145,8 +145,15 @@ export class Controller implements IController {
 
 		let operator = Mappings.findOperator(this._currentInput);
 		if (operator) {
-			if (operator(this, editor)) {
-				this._currentInput = '';
+			if (this._currentMode === Mode.VISUAL) {
+				if (operator.runVisual(this, editor)) {
+					this._currentInput = '';
+				}
+			} else {
+				// Mode.NORMAL
+				if (operator.runNormal(this, editor)) {
+					this._currentInput = '';
+				}
 			}
 			return {
 				hasConsumedInput: true,
@@ -160,6 +167,7 @@ export class Controller implements IController {
 			if (this._currentMode === Mode.VISUAL) {
 				setSelectionAndReveal(editor, this._motionState.anchor, newPos.line, newPos.character);
 			} else {
+				// Mode.NORMAL
 				setPositionAndReveal(editor, newPos.line, newPos.character);
 			}
 			this._currentInput = '';

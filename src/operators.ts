@@ -10,7 +10,8 @@ import {Mode, IController, DeleteRegister} from './common';
 
 export abstract class Operator {
 
-	public abstract runNormalMode(controller: IController, ed:TextEditor, repeatCount: number, args: string): boolean;
+	public abstract runNormalMode(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean;
+	public abstract runVisualMode(ctrl: IController, ed:TextEditor, args: string): boolean;
 
 	protected doc(ed:TextEditor): TextDocument {
 		return ed.document;
@@ -18,6 +19,10 @@ export abstract class Operator {
 
 	protected pos(ed:TextEditor): Position {
 		return ed.selection.active;
+	}
+
+	protected sel(ed:TextEditor): Selection {
+		return ed.selection;
 	}
 
 	protected setPosReveal(ed:TextEditor, line: number, char: number): void {
@@ -33,36 +38,44 @@ export abstract class Operator {
 	}
 }
 
-class InsertOperator extends Operator {
+abstract class OperatorWithNoArgs extends Operator {
 	public runNormalMode(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
-		ctrl.setMode(Mode.INSERT);
+		this._run(ctrl, ed);
 		return true;
+	}
+	public runVisualMode(ctrl: IController, ed:TextEditor, args: string): boolean {
+		this._run(ctrl, ed);
+		return true;
+	}
+	protected abstract _run(ctrl: IController, ed:TextEditor): void;
+}
+
+class InsertOperator extends OperatorWithNoArgs {
+	protected _run(ctrl: IController, ed:TextEditor): void {
+		ctrl.setMode(Mode.INSERT);
 	}
 }
 
-class AppendOperator extends Operator {
-	public runNormalMode(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
+class AppendOperator extends OperatorWithNoArgs {
+	protected _run(ctrl: IController, ed:TextEditor): void {
 		let newPos = Motions.Right.run(this.doc(ed), this.pos(ed), ctrl.motionState);
 		this.setPosReveal(ed, newPos.line, newPos.character);
 		ctrl.setMode(Mode.INSERT);
-		return true;
 	}
 }
 
-class VisualOperator extends Operator {
-	public runNormalMode(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
-		ctrl.motionState.anchor = this.pos(ed);
-		ctrl.setMode(Mode.VISUAL);
-		return true;
-	}
-}
-
-class AppendEndOfLineOperator extends Operator {
-	public runNormalMode(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
+class AppendEndOfLineOperator extends OperatorWithNoArgs {
+	protected _run(ctrl: IController, ed:TextEditor): void {
 		let newPos = Motions.EndOfLine.run(this.doc(ed), this.pos(ed), ctrl.motionState);
 		this.setPosReveal(ed, newPos.line, newPos.character);
 		ctrl.setMode(Mode.INSERT);
-		return true;
+	}
+}
+
+class VisualOperator extends OperatorWithNoArgs {
+	protected _run(ctrl: IController, ed:TextEditor): void {
+		ctrl.motionState.anchor = this.pos(ed);
+		ctrl.setMode(Mode.VISUAL);
 	}
 }
 
@@ -73,6 +86,12 @@ class DeleteCharUnderCursorOperator extends Operator {
 
 		this.delete(ctrl, ed, false, new Range(from.line, from.character, to.line, to.character));
 
+		return true;
+	}
+
+	public runVisualMode(ctrl: IController, ed:TextEditor, args: string): boolean {
+		let sel = this.sel(ed);
+		this.delete(ctrl, ed, false, sel);
 		return true;
 	}
 }
@@ -103,6 +122,12 @@ class DeleteLineOperator extends Operator {
 
 		return true;
 	}
+
+	public runVisualMode(ctrl: IController, ed:TextEditor, args: string): boolean {
+		let sel = this.sel(ed);
+		this.delete(ctrl, ed, false, sel);
+		return true;
+	}
 }
 
 abstract class OperatorWithMotion extends Operator {
@@ -119,10 +144,10 @@ abstract class OperatorWithMotion extends Operator {
 			return true;
 		}
 
-		return this._run(ctrl, ed, motion.repeat(repeatCount > 1, repeatCount));
+		return this._runNormalMode(ctrl, ed, motion.repeat(repeatCount > 1, repeatCount));
 	}
 
-	protected abstract _run(ctrl: IController, ed:TextEditor, motion: Motion): boolean;
+	protected abstract _runNormalMode(ctrl: IController, ed:TextEditor, motion: Motion): boolean;
 }
 
 class DeleteToOperator extends OperatorWithMotion {
@@ -135,7 +160,7 @@ class DeleteToOperator extends OperatorWithMotion {
 		return super.runNormalMode(ctrl, ed, repeatCount, args);
 	}
 
-	protected _run(ctrl: IController, ed:TextEditor, motion: Motion): boolean {
+	protected _runNormalMode(ctrl: IController, ed:TextEditor, motion: Motion): boolean {
 		let to = motion.run(this.doc(ed), this.pos(ed), ctrl.motionState);
 		let from = this.pos(ed);
 
@@ -144,6 +169,11 @@ class DeleteToOperator extends OperatorWithMotion {
 		return true;
 	}
 
+	public runVisualMode(ctrl: IController, ed:TextEditor, args: string): boolean {
+		let sel = this.sel(ed);
+		this.delete(ctrl, ed, false, sel);
+		return true;
+	}
 }
 
 class PutOperator extends Operator {
@@ -182,6 +212,23 @@ class PutOperator extends Operator {
 
 		return true;
 	}
+
+	public runVisualMode(ctrl: IController, ed:TextEditor, args: string): boolean {
+		let register = ctrl.getDeleteRegister();
+		if (!register) {
+			// No delete register - beep!!
+			return;
+		}
+
+		let str = register.content;
+
+		let sel = this.sel(ed);
+		ed.edit((builder) => {
+			builder.replace(sel, str);
+		});
+
+		return true;
+	}
 }
 
 class ReplaceOperator extends Operator {
@@ -206,11 +253,38 @@ class ReplaceOperator extends Operator {
 
 		return true;
 	}
+
+	public runVisualMode(ctrl: IController, ed:TextEditor, args: string): boolean {
+		if (args.length === 0) {
+			// input not ready
+			return false;
+		}
+
+		let doc = this.doc(ed);
+		let sel = this.sel(ed);
+
+		let srcString = doc.getText(sel);
+		let dstString = '';
+		for (let i = 0; i < srcString.length; i++) {
+			let ch = srcString.charAt(i);
+			if (ch === '\r' || ch === '\n') {
+				dstString += ch;
+			} else {
+				dstString += args;
+			}
+		}
+
+		ed.edit((builder) => {
+			builder.replace(sel, dstString);
+		});
+
+		return true;
+	}
 }
 
 class ChangeOperator extends OperatorWithMotion {
 
-	protected _run(ctrl: IController, ed:TextEditor, motion: Motion): boolean {
+	protected _runNormalMode(ctrl: IController, ed:TextEditor, motion: Motion): boolean {
 		let to = motion.run(this.doc(ed), this.pos(ed), ctrl.motionState);
 		let from = this.pos(ed);
 
@@ -221,6 +295,15 @@ class ChangeOperator extends OperatorWithMotion {
 		return true;
 	}
 
+	public runVisualMode(ctrl: IController, ed:TextEditor, args: string): boolean {
+		let sel = this.sel(ed);
+
+		this.delete(ctrl, ed, false, sel);
+
+		ctrl.setMode(Mode.INSERT);
+
+		return true;
+	}
 }
 
 function repeatString(str:string, repeatCount:number): string {

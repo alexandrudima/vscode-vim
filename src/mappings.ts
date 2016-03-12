@@ -49,7 +49,8 @@ defineCommand('u', 'undo');
 defineCommand('U', 'undo');
 
 export interface IFoundOperator {
-	(controller: IController, editor:TextEditor): boolean;
+	runNormal(controller: IController, editor:TextEditor): boolean;
+	runVisual(controller: IController, editor:TextEditor): boolean;
 }
 
 export class Mappings {
@@ -72,9 +73,14 @@ export class Mappings {
 		if (!operator) {
 			return null;
 		}
-		return (controller: IController, editor:TextEditor) => {
-			let operatorArgs = parsed.input.substr(1);
-			return operator.runNormalMode(controller, editor, parsed.repeatCount, operatorArgs);
+		let operatorArgs = parsed.input.substr(1);
+		return {
+			runNormal: (controller: IController, editor:TextEditor) => {
+				return operator.runNormalMode(controller, editor, parsed.repeatCount, operatorArgs);
+			},
+			runVisual: (controller: IController, editor:TextEditor) => {
+				return operator.runVisualMode(controller, editor, operatorArgs);
+			}
 		};
 	}
 
