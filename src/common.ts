@@ -9,7 +9,7 @@ import {MotionState, Motion} from './motions';
 export enum Mode {
 	INSERT,
 	NORMAL,
-	VISUAL
+	REPLACE
 }
 
 export class DeleteRegister {
@@ -26,6 +26,7 @@ export interface IController {
 	motionState: MotionState;
 
 	setMode(mode: Mode): void;
+	setVisual(newVisual:boolean): void;
 	findMotion(input: string): Motion;
 	isMotionPrefix(input: string): boolean;
 

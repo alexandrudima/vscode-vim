@@ -28,6 +28,7 @@ export class Controller implements IController {
 	private _currentMode: Mode;
 	private _currentInput: string;
 	private _motionState: MotionState;
+	private _isVisual: boolean;
 
 	public get motionState(): MotionState { return this._motionState; }
 	public findMotion(input: string): Motion { return Mappings.findMotion(input); }
@@ -40,6 +41,7 @@ export class Controller implements IController {
 	constructor() {
 		this._motionState = new MotionState();
 		this._deleteRegister = null;
+		this.setVisual(false);
 		this.setMode(Mode.NORMAL);
 	}
 
@@ -84,56 +86,81 @@ export class Controller implements IController {
 		}
 	}
 
-	public getCursorStyle(): TextEditorCursorStyle {
-		if (this._currentMode === Mode.VISUAL) {
-			return TextEditorCursorStyle.Block;
+	public setVisual(newVisual: boolean): void {
+		if (this._isVisual !== newVisual) {
+			this._isVisual = newVisual;
 		}
+	}
+
+	public getVisual(): boolean {
+		return this._isVisual;
+	}
+
+	public getCursorStyle(): TextEditorCursorStyle {
 		if (this._currentMode === Mode.NORMAL) {
 			if (/^([1-9]\d*)?(r|c)/.test(this._currentInput)) {
 				return TextEditorCursorStyle.Underline;
 			}
 			return TextEditorCursorStyle.Block;
 		}
+		if (this._currentMode === Mode.REPLACE) {
+			return TextEditorCursorStyle.Underline;
+		}
 		return TextEditorCursorStyle.Line;
 	}
 
-	public getStatusText(): string {
-		if (this._currentMode === Mode.VISUAL) {
-			if (this._currentInput) {
-				return 'VIM:> -- VISUAL -- >' + this._currentInput;
-			}
-			// TODO: show line count
-			return 'VIM:> -- VISUAL --';
-		}
+	private _getModeLabel(): string {
 		if (this._currentMode === Mode.NORMAL) {
-			if (this._currentInput) {
-				return 'VIM:> -- NORMAL -- >' + this._currentInput;
+			if (this._isVisual) {
+				return '-- VISUAL --';
 			}
-			return 'VIM:> -- NORMAL --';
+			return '-- NORMAL --';
 		}
-		return 'VIM:> -- INSERT --';
+
+		if (this._currentMode === Mode.REPLACE) {
+			if (this._isVisual) {
+				return '-- (replace) VISUAL --';
+			}
+			return '-- REPLACE --';
+		}
+
+		if (this._isVisual) {
+			return '-- (insert) VISUAL --';
+		}
+		return '-- INSERT --';
+	}
+
+	public getStatusText(): string {
+		let label = this._getModeLabel();
+		return `VIM:> ${label}` + (this._currentInput ? ` >${this._currentInput}` : ``);
 	}
 
 	public type(editor: TextEditor, text: string): ITypeResult {
-		if (this._currentMode !== Mode.NORMAL && this._currentMode !== Mode.VISUAL) {
+		if (this._currentMode !== Mode.NORMAL && this._currentMode !== Mode.REPLACE) {
 			return {
 				hasConsumedInput: false,
 				executeEditorCommand: null
 			};
 		}
+		if (this._currentMode === Mode.REPLACE) {
+			throw new Error('TODO!');
+		}
 		this._currentInput += text;
-		return this._interpretNormalOrVisualModeInput(editor);
+		return this._interpretNormalModeInput(editor);
 	}
 
 	public replacePrevChar(text: string, replaceCharCnt: number): boolean {
-		if (this._currentMode !== Mode.NORMAL && this._currentMode !== Mode.VISUAL) {
+		if (this._currentMode !== Mode.NORMAL && this._currentMode !== Mode.REPLACE) {
 			return false;
+		}
+		if (this._currentMode === Mode.REPLACE) {
+			throw new Error('TODO!');
 		}
 		// Not supporting IME building at this time
 		return true;
 	}
 
-	private _interpretNormalOrVisualModeInput(editor: TextEditor): ITypeResult {
+	private _interpretNormalModeInput(editor: TextEditor): ITypeResult {
 		let command = Mappings.findCommand(this._currentInput);
 		if (command) {
 			this._currentInput = '';
@@ -145,7 +172,7 @@ export class Controller implements IController {
 
 		let operator = Mappings.findOperator(this._currentInput);
 		if (operator) {
-			if (this._currentMode === Mode.VISUAL) {
+			if (this._isVisual) {
 				if (operator.runVisual(this, editor)) {
 					this._currentInput = '';
 				}
@@ -164,7 +191,7 @@ export class Controller implements IController {
 		let motion = Mappings.findMotion(this._currentInput);
 		if (motion) {
 			let newPos = motion.run(editor.document, editor.selection.active, this._motionState);
-			if (this._currentMode === Mode.VISUAL) {
+			if (this._isVisual) {
 				setSelectionAndReveal(editor, this._motionState.anchor, newPos.line, newPos.character);
 			} else {
 				// Mode.NORMAL

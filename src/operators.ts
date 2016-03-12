@@ -75,7 +75,7 @@ class AppendEndOfLineOperator extends OperatorWithNoArgs {
 class VisualOperator extends OperatorWithNoArgs {
 	protected _run(ctrl: IController, ed:TextEditor): void {
 		ctrl.motionState.anchor = this.pos(ed);
-		ctrl.setMode(Mode.VISUAL);
+		ctrl.setVisual(true);
 	}
 }
 

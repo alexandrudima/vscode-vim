@@ -78,9 +78,12 @@ class VimExt {
 		});
 
 		vscode.window.onDidChangeTextEditorSelection((e) => {
-			if (this._controller.getMode() === Mode.NORMAL) {
+			let isVisual = this._controller.getVisual();
+
+			if (!isVisual) {
 				// a selection in the editor brings us to visual mode
 				let goToVisualMode = false;
+
 				if (e.selections.length > 1) {
 					goToVisualMode = true;
 				} else {
@@ -88,18 +91,19 @@ class VimExt {
 				}
 
 				if (goToVisualMode) {
-					this._controller.setMode(Mode.VISUAL);
+					this._controller.setVisual(true);
 				}
-			} else if (this._controller.getMode() === Mode.VISUAL) {
+			} else {
 				// a collapsed selection in the editor brings us to normal mode
-				let goToNormalMode = false;
+				let leaveVisualMode = false;
 				if (e.selections.length === 1) {
-					goToNormalMode = e.selections[0].isEmpty;
+					leaveVisualMode = e.selections[0].isEmpty;
 				}
-				if (goToNormalMode) {
-					this._controller.setMode(Mode.NORMAL);
+				if (leaveVisualMode) {
+					this._controller.setVisual(false);
 				}
 			}
+
 			this._ensureState();
 		});
 
