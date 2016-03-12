@@ -77,14 +77,7 @@ class VimExt {
 			this._ensureState();
 		});
 
-		var ensurePosition = () => {
-			if (!vscode.window.activeTextEditor) {
-				return;
-			}
-			this._controller.ensureNormalModePosition(vscode.window.activeTextEditor);
-		};
-		ensurePosition();
-		vscode.window.onDidChangeTextEditorSelection(ensurePosition);
+		vscode.window.onDidChangeTextEditorSelection(() => this._ensureState());
 
 		var ensureConfig = () => {
 			this._controller.setWordSeparators(getConfiguredWordSeparators());
@@ -131,6 +124,9 @@ class VimExt {
 	}
 
 	private _ensureState(): void {
+		// 0. position
+		this._ensurePosition();
+
 		// 1. status bar
 		this._statusBar.setText(this._controller.getStatusText());
 
@@ -142,6 +138,14 @@ class VimExt {
 
 		// 4. context: vim.hasInput
 		this._hasInput.set(this._controller.hasInput());
+	}
+
+	private _ensurePosition(): void {
+		console.log('ensure position called!');
+		if (!vscode.window.activeTextEditor) {
+			return;
+		}
+		this._controller.ensureNormalModePosition(vscode.window.activeTextEditor);
 	}
 
 	private _ensureCursorStyle(cursorStyle: vscode.TextEditorCursorStyle): void {

@@ -52,9 +52,6 @@ export class Controller implements IController {
 			return;
 		}
 		let sel = editor.selection;
-		if (!sel.isEmpty) {
-			return;
-		}
 		let pos = sel.active;
 		let doc = editor.document;
 		let lineContent = doc.lineAt(pos.line).text;
