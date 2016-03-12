@@ -62,6 +62,36 @@ class DeleteCharUnderCursorOperator extends Operator {
 	}
 }
 
+class DeleteLineOperator extends Operator {
+	public run(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
+		let pos = this.pos(ed);
+		let doc = this.doc(ed);
+
+		let fromLine = pos.line;
+		let fromCharacter = 0;
+
+		let toLine = fromLine + repeatCount;
+		let toCharacter = 0;
+
+		if (toLine >= doc.lineCount - 1) {
+			// Deleting last line
+			toLine = doc.lineCount - 1;
+			toCharacter = doc.lineAt(toLine).text.length;
+
+			if (fromLine > 0) {
+				fromLine = fromLine - 1;
+				fromCharacter = doc.lineAt(fromLine).text.length;
+			}
+		}
+
+		ed.edit((builder) => {
+			builder.delete(new Range(fromLine, fromCharacter, toLine, toCharacter));
+		});
+
+		return true;
+	}
+}
+
 abstract class OperatorWithMotion extends Operator {
 	public run(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
 		let motion = ctrl.findMotion(args);
@@ -84,6 +114,14 @@ abstract class OperatorWithMotion extends Operator {
 
 class DeleteToOperator extends OperatorWithMotion {
 
+	public run(ctrl: IController, ed:TextEditor, repeatCount: number, args: string): boolean {
+		if (args === 'd') {
+			// dd
+			return Operators.DeleteLine.run(ctrl, ed, repeatCount, args);
+		}
+		return super.run(ctrl, ed, repeatCount, args);
+	}
+
 	protected _run(ctrl: IController, ed:TextEditor, motion: Motion): boolean {
 		let to = motion.run(this.doc(ed), this.pos(ed), ctrl.motionState);
 		let from = this.pos(ed);
@@ -101,4 +139,5 @@ export const Operators = {
 	AppendEndOfLine: new AppendEndOfLineOperator(),
 	DeleteCharUnderCursor: new DeleteCharUnderCursorOperator(),
 	DeleteTo: new DeleteToOperator(),
+	DeleteLine: new DeleteLineOperator(),
 };
