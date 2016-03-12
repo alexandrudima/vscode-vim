@@ -10,6 +10,7 @@ import {Words} from './words';
 import {MotionState, Motion, Motions} from './motions';
 import {Operator, Operators} from './operators';
 import {Mode, IController} from './common';
+import {Mappings} from './mappings';
 
 export function deactivate() {
 }
@@ -45,33 +46,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 // let NORMAL_MODE = 0, INSERT_MODE = 1;
 
-const CHAR_TO_OPERATOR: {[char:string]:Operator;} = {};
-const CHAR_TO_MOTION: {[char:string]:Motion;} = {};
-(function() {
-	let defineMotion = (char:string, motion:Motion) => {
-		CHAR_TO_MOTION[char] = motion;
-	};
 
-	defineMotion('w', Motions.NextWordStart);
-	defineMotion('e', Motions.NextWordEnd);
-	defineMotion('$', Motions.EndOfLine);
-	defineMotion('0', Motions.StartOfLine);
-	defineMotion('h', Motions.Left);
-	defineMotion('j', Motions.Down);
-	defineMotion('k', Motions.Up);
-	defineMotion('l', Motions.Right);
-})();
-(function() {
-	let defineOperator = (char:string, operator:Operator) => {
-		CHAR_TO_OPERATOR[char] = operator;
-	};
-
-	defineOperator('x', Operators.DeleteCharUnderCursor);
-	defineOperator('i', Operators.Insert);
-	defineOperator('a', Operators.Append);
-	defineOperator('A', Operators.AppendEndOfLine);
-	defineOperator('d', Operators.DeleteTo);
-})();
 
 class InputHandler implements IController {
 
@@ -80,10 +55,9 @@ class InputHandler implements IController {
 	private hasInput: boolean;
 	private _motionState: MotionState;
 
-
-
 	public get motionState(): MotionState { return this._motionState; }
 	public get editor(): vscode.TextEditor { return vscode.window.activeTextEditor; }
+	public findMotion(input:string): Motion { return Mappings.findMotion(input); }
 
 	constructor() {
 		this._motionState = new MotionState();
@@ -219,18 +193,16 @@ class InputHandler implements IController {
 	}
 
 	private _interpretNormalModeInput(): void {
-
-
-		let operator = this.findOperator(this._currentInput);
+		let operator = Mappings.findOperator(this._currentInput);
 		if (operator) {
-			if (operator.run()) {
+			if (operator(this)) {
 				console.log('OPERATOR CLEARS INPUT');
 				this._currentInput = '';
 			}
 			return;
 		}
 
-		let motion = this.findMotion(this._currentInput);
+		let motion = Mappings.findMotion(this._currentInput);
 		if (motion) {
 			let newPos = motion.run(activeDocument(), activePosition(), this._motionState);
 			setPositionAndReveal(newPos.line, newPos.character);
@@ -245,56 +217,9 @@ class InputHandler implements IController {
 			return;
 		}
 
-		// // is it operator
-		// if (/^[1-9]\d*$/.test(this._currentInput)) {
-		// 	return;
-		// }
-
 		// beep!!
 		this._currentInput = '';
 	}
-
-	public findMotion(input:string): Motion {
-		let parsed = InputHandler._parseNumberAndString(input);
-		let motion = CHAR_TO_MOTION[parsed.input];
-		if (!motion) {
-			return null;
-		}
-		return motion.repeat(parsed.repeatCount);
-	}
-
-	private findOperator(input:string):{run:()=>void;} {
-		let parsed = InputHandler._parseNumberAndString(input);
-		let operator = CHAR_TO_OPERATOR[parsed.input.charAt(0)];
-		if (!operator) {
-			return null;
-		}
-		return {
-			run: () => {
-				let operatorArgs = parsed.input.substr(1);
-				return operator.run(this, parsed.repeatCount, operatorArgs);
-			}
-		};
-	}
-
-	private static _parseNumberAndString(input:string): INumberAndString {
-		let repeatCountMatch = input.match(/^([1-9]\d*)/);
-		if (repeatCountMatch) {
-			return {
-				repeatCount: parseInt(repeatCountMatch[0], 10),
-				input: input.substr(repeatCountMatch[0].length)
-			};
-		}
-		return {
-			repeatCount: 1,
-			input: input
-		}
-	}
-}
-
-interface INumberAndString {
-	repeatCount: number;
-	input: string;
 }
 
 let _statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
@@ -310,7 +235,4 @@ function activePosition() {
 }
 function activeDocument() {
 	return vscode.window.activeTextEditor.document;
-}
-function activeEditor() {
-	return vscode.window.activeTextEditor;
 }
