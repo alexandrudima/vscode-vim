@@ -18,23 +18,25 @@ export function activate(context: vscode.ExtensionContext) {
 		context.subscriptions.push(vscode.commands.registerCommand(commandId, run));
 	}
 
+	let vimExt = new VimExt();
+
 	registerCommandNice('type', function(args) {
 		if (!vscode.window.activeTextEditor) {
 			return;
 		}
-		_inputHandler.type(args.text);
+		vimExt.type(args.text);
 	});
 	registerCommandNice('replacePreviousChar', function(args) {
 		if (!vscode.window.activeTextEditor) {
 			return;
 		}
-		_inputHandler.replacePrevChar(args.text, args.replaceCharCnt);
+		vimExt.replacePrevChar(args.text, args.replaceCharCnt);
 	});
 	registerCommandNice('vim.goToNormalMode', function(args) {
-		_inputHandler.goToNormalMode();
+		vimExt.goToNormalMode();
 	});
 	registerCommandNice('vim.clearInput', function(args) {
-		_inputHandler.clearInput();
+		vimExt.clearInput();
 	});
 	// registerCommandNice('paste', function(args) {
 	// 	console.log('paste with: ', args.text, args.pasteOnNewLine);
@@ -54,11 +56,18 @@ function getConfiguredWordSeparators(): string {
 	return editorConfig['wordSeparators'];
 }
 
-class InputHandler {
+class VimExt {
 
+	private _inNormalMode: ContextKey;
+	private _hasInput: ContextKey;
+	private _statusBar: StatusBar;
 	private _controller: Controller;
 
 	constructor() {
+		this._inNormalMode = new ContextKey('vim.inNormalMode');
+		this._hasInput = new ContextKey('vim.hasInput');
+		this._statusBar = new StatusBar();
+
 		this._controller = new Controller({
 			getActiveTextEditor: () => {
 				return vscode.window.activeTextEditor;
@@ -76,6 +85,7 @@ class InputHandler {
 		this._controller.ensureNormalModePosition();
 		vscode.window.onDidChangeTextEditorSelection((e) => {
 			this._controller.ensureNormalModePosition();
+			this._ensureState();
 		});
 
 		vscode.workspace.onDidChangeConfiguration(() => {
@@ -118,25 +128,16 @@ class InputHandler {
 
 	private _ensureState(): void {
 		// 1. status bar
-		this._ensureStatusText(this._controller.getStatusText());
+		this._statusBar.setText(this._controller.getStatusText());
 
 		// 2. cursor style
 		this._ensureCursorStyle(this._controller.getCursorStyle());
 
 		// 3. context: vim.inNormalMode
-		this._ensureContextInNormalMode(this._controller.getMode() === Mode.NORMAL);
+		this._inNormalMode.set(this._controller.getMode() === Mode.NORMAL);
 
 		// 4. context: vim.hasInput
-		this._ensureContextHasInput(this._controller.hasInput());
-	}
-
-	private _lastStatusText: string;
-	private _ensureStatusText(text: string): void {
-		if (this._lastStatusText === text) {
-			return;
-		}
-		this._lastStatusText = text;
-		_statusBar.text = this._lastStatusText;
+		this._hasInput.set(this._controller.hasInput());
 	}
 
 	private _ensureCursorStyle(cursorStyle: vscode.TextEditorCursorStyle): void {
@@ -147,27 +148,39 @@ class InputHandler {
 			};
 		}
 	}
+}
 
-	private _lastInNormalMode: boolean;
-	private _ensureContextInNormalMode(inNormalMode: boolean): void {
-		if (this._lastInNormalMode === inNormalMode) {
-			return;
-		}
-		this._lastInNormalMode = inNormalMode;
-		vscode.commands.executeCommand('setContext', 'vim.inNormalMode', inNormalMode);
+class ContextKey {
+	private _name: string;
+	private _lastValue: boolean;
+
+	constructor(name:string) {
+		this._name = name;
 	}
 
-	private _lastHasInput: boolean;
-	private _ensureContextHasInput(hasInput: boolean): void {
-		if (this._lastHasInput === hasInput) {
+	public set(value:boolean): void {
+		if (this._lastValue === value) {
 			return;
 		}
-		this._lastHasInput = hasInput;
-		vscode.commands.executeCommand('setContext', 'vim.hasInput', hasInput);
+		this._lastValue = value;
+		vscode.commands.executeCommand('setContext', this._name, this._lastValue);
 	}
 }
 
-let _statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
-_statusBar.show();
-let _inputHandler = new InputHandler();
+class StatusBar {
+	private _actual: vscode.StatusBarItem;
+	private _lastText: string;
 
+	constructor() {
+		this._actual = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
+		this._actual.show();
+	}
+
+	public setText(text:string): void {
+		if (this._lastText === text) {
+			return;
+		}
+		this._lastText = text;
+		this._actual.text = this._lastText;
+	}
+}
