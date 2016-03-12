@@ -37,7 +37,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// });
 };
 
-var NORMAL_MODE = 0, INSERT_MODE = 1;
+let NORMAL_MODE = 0, INSERT_MODE = 1;
 
 class InputHandler {
 
@@ -76,25 +76,25 @@ class InputHandler {
 		if (this._currentMode !== NORMAL_MODE) {
 			return;
 		}
-		var sel = vscode.window.activeTextEditor.selection;
+		let sel = vscode.window.activeTextEditor.selection;
 		if (!sel.isEmpty) {
 			return;
 		}
-		var pos = sel.active;
-		var doc = activeDocument();
-		var lineContent = doc.lineAt(pos.line).text;
+		let pos = sel.active;
+		let doc = activeDocument();
+		let lineContent = doc.lineAt(pos.line).text;
 		if (lineContent.length === 0) {
 			return;
 		}
-		var maxCharacter = lineContent.length - 1;
+		let maxCharacter = lineContent.length - 1;
 		if (pos.character > maxCharacter) {
 			setPositionAndReveal(pos.line, maxCharacter);
 		}
 	}
 
 	private _readConfig(): void {
-		var editorConfig = vscode.workspace.getConfiguration('editor');
-		var wordSeparators = editorConfig.wordSeparators;
+		let editorConfig = vscode.workspace.getConfiguration('editor');
+		let wordSeparators = editorConfig.wordSeparators;
 
 		this._motionState.wordCharacterClass = Words.createWordCharacters(wordSeparators);
 	}
@@ -123,7 +123,7 @@ class InputHandler {
 				};
 			}
 
-			var inNormalMode = (this._currentMode === NORMAL_MODE);
+			let inNormalMode = (this._currentMode === NORMAL_MODE);
 			vscode.commands.executeCommand('setContext', 'vim.inNormalMode', inNormalMode);
 			this._ensureNormalModePosition();
 		}
@@ -144,7 +144,7 @@ class InputHandler {
 
 	private _updateStatus(): void {
 		_statusBar.text = this.getStatusText();
-		var hasInput = (this._currentInput.length > 0);
+		let hasInput = (this._currentInput.length > 0);
 		if (this.hasInput !== hasInput) {
 			this.hasInput = hasInput;
 			vscode.commands.executeCommand('setContext', 'vim.hasInput', this.hasInput);
@@ -183,16 +183,32 @@ class InputHandler {
 	}
 
 	private _interpretNormalModeInput(): void {
+		if (!this.CHAR_TO_MOTION) {
+			this.CHAR_TO_MOTION = {};
+			let defineMotion = (char, motion) => {
+				this.CHAR_TO_MOTION[char] = motion;
+			};
+
+			defineMotion('w', Motions.NextWordStart);
+			defineMotion('e', Motions.NextWordEnd);
+			defineMotion('$', Motions.EndOfLine);
+			defineMotion('0', Motions.StartOfLine);
+			defineMotion('h', Motions.Left);
+			defineMotion('j', Motions.Down);
+			defineMotion('k', Motions.Up);
+			defineMotion('l', Motions.Right);
+		}
+
 		if (!this.CHAR_TO_OPERATOR) {
 			this.CHAR_TO_OPERATOR = {};
-			var defineOperator = (char:string, run:(repeatCnt:number, args:string)=>void) => {
+			let defineOperator = (char:string, run:(repeatCnt:number, args:string)=>void) => {
 				this.CHAR_TO_OPERATOR[char] = run;
 			};
-			var defineOperatorWithMotion = (char:string, run:(motion:Motion)=>void) => {
+			let defineOperatorWithMotion = (char:string, run:(motion:Motion)=>void) => {
 				defineOperator(char, (repeatCnt, args) => {
 					console.log('char: ' + char);
 					console.log('args: ' + args);
-					var motion = findMotion(args);
+					let motion = this.findMotion(args);
 					if (!motion) {
 						return false;
 					}
@@ -210,13 +226,13 @@ class InputHandler {
 				return true;
 			});
 			defineOperator('a', (repeatCnt) => {
-				var newPos = Motions.Right.run(activeDocument(), activePosition(), this._motionState);
+				let newPos = Motions.Right.run(activeDocument(), activePosition(), this._motionState);
 				setPositionAndReveal(newPos.line, newPos.character);
 				this._setMode(INSERT_MODE);
 				return true;
 			});
 			defineOperator('A', (repeatCnt) => {
-				var newPos = Motions.EndOfLine.run(activeDocument(), activePosition(), this._motionState);
+				let newPos = Motions.EndOfLine.run(activeDocument(), activePosition(), this._motionState);
 				setPositionAndReveal(newPos.line, newPos.character);
 				this._setMode(INSERT_MODE);
 				return true;
@@ -228,60 +244,7 @@ class InputHandler {
 			});
 		}
 
-		if (!this.CHAR_TO_MOTION) {
-			this.CHAR_TO_MOTION = {};
-			var defineMotion = (char, motion) => {
-				this.CHAR_TO_MOTION[char] = motion;
-			};
-
-			defineMotion('w', Motions.NextWordStart);
-			defineMotion('e', Motions.NextWordEnd);
-			defineMotion('$', Motions.EndOfLine);
-			defineMotion('0', Motions.StartOfLine);
-			defineMotion('h', Motions.Left);
-			defineMotion('j', Motions.Down);
-			defineMotion('k', Motions.Up);
-			defineMotion('l', Motions.Right);
-		}
-
-		var parseNumberString = (input:string) => {
-			var repeatCountMatch = input.match(/^([1-9]\d*)/);
-			if (repeatCountMatch) {
-				return {
-					repeatCount: parseInt(repeatCountMatch[0], 10),
-					input: input.substr(repeatCountMatch[0].length)
-				};
-			}
-			return {
-				repeatCount: 1,
-				input: input
-			}
-		};
-
-		var findMotion = (input:string):Motion => {
-			var parsed = parseNumberString(input);
-			var motion = this.CHAR_TO_MOTION[parsed.input];
-			if (!motion) {
-				return null;
-			}
-			return motion.repeat(parsed.repeatCount);
-		};
-
-		var findOperator = (input) => {
-			var parsed = parseNumberString(input);
-			var operator = this.CHAR_TO_OPERATOR[parsed.input.charAt(0)];
-			if (!operator) {
-				return null;
-			}
-			return {
-				run: () => {
-					var operatorArgs = parsed.input.substr(1);
-					return operator(parsed.repeatCount, operatorArgs);
-				}
-			};
-		};
-
-		var operator = findOperator(this._currentInput);
+		let operator = this.findOperator(this._currentInput);
 		if (operator) {
 			if (operator.run()) {
 				console.log('OPERATOR CLEARS INPUT');
@@ -290,9 +253,9 @@ class InputHandler {
 			return;
 		}
 
-		var motion = findMotion(this._currentInput);
+		let motion = this.findMotion(this._currentInput);
 		if (motion) {
-			var newPos = motion.run(activeDocument(), activePosition(), this._motionState);
+			let newPos = motion.run(activeDocument(), activePosition(), this._motionState);
 			setPositionAndReveal(newPos.line, newPos.character);
 			this._currentInput = '';
 			return;
@@ -316,23 +279,65 @@ class InputHandler {
 
 	private _deleteCharUnderCursor(repeatCnt:number): void {
 		console.log('TODO: repeatCnt');
-		var pos = activePosition();
+		let pos = activePosition();
 		activeEditor().edit((builder) => {
 			builder.delete(new vscode.Range(pos.line, pos.character, pos.line, pos.character + 1));
 		});
 	}
 
 	private _deleteTo(toPos:vscode.Position): void {
-		var pos = activePosition();
+		let pos = activePosition();
 		activeEditor().edit((builder) => {
 			builder.delete(new vscode.Range(pos.line, pos.character, toPos.line, toPos.character));
 		});
 	}
+
+	private findMotion(input:string):Motion {
+		let parsed = InputHandler._parseNumberAndString(input);
+		let motion = this.CHAR_TO_MOTION[parsed.input];
+		if (!motion) {
+			return null;
+		}
+		return motion.repeat(parsed.repeatCount);
+	}
+
+	private findOperator(input:string):{run:()=>void;} {
+		let parsed = InputHandler._parseNumberAndString(input);
+		let operator = this.CHAR_TO_OPERATOR[parsed.input.charAt(0)];
+		if (!operator) {
+			return null;
+		}
+		return {
+			run: () => {
+				let operatorArgs = parsed.input.substr(1);
+				return operator(parsed.repeatCount, operatorArgs);
+			}
+		};
+	}
+
+	private static _parseNumberAndString(input:string): INumberAndString {
+		let repeatCountMatch = input.match(/^([1-9]\d*)/);
+		if (repeatCountMatch) {
+			return {
+				repeatCount: parseInt(repeatCountMatch[0], 10),
+				input: input.substr(repeatCountMatch[0].length)
+			};
+		}
+		return {
+			repeatCount: 1,
+			input: input
+		}
+	}
 }
 
-var _statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
+interface INumberAndString {
+	repeatCount: number;
+	input: string;
+}
+
+let _statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
 _statusBar.show();
-var _inputHandler = new InputHandler();
+let _inputHandler = new InputHandler();
 
 function setPositionAndReveal(line, char) {
 	vscode.window.activeTextEditor.selection = new vscode.Selection(new vscode.Position(line, char), new vscode.Position(line, char));

@@ -151,7 +151,6 @@ class MotionNextWordStart extends Motion {
 	}
 }
 
-
 class MotionNextWordEnd extends Motion {
 	public run(doc:TextDocument, pos:Position, state:MotionState): Position {
 		let lineContent = doc.lineAt(pos.line).text;
