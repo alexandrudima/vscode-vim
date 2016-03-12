@@ -9,11 +9,11 @@ import {Motion, Motions} from './motions';
 import {Operator, Operators} from './operators';
 import {IController} from './common';
 
+
 const CHAR_TO_MOTION: { [char: string]: Motion; } = {};
 function defineMotion(char: string, motion: Motion): void {
 	CHAR_TO_MOTION[char] = motion;
 };
-
 defineMotion('w', Motions.NextWordStart);
 defineMotion('e', Motions.NextWordEnd);
 defineMotion('$', Motions.EndOfLine);
@@ -23,16 +23,24 @@ defineMotion('j', Motions.Down);
 defineMotion('k', Motions.Up);
 defineMotion('l', Motions.Right);
 
+
 const CHAR_TO_OPERATOR: { [char: string]: Operator; } = {};
 function defineOperator(char: string, operator: Operator): void {
 	CHAR_TO_OPERATOR[char] = operator;
 };
-
 defineOperator('x', Operators.DeleteCharUnderCursor);
 defineOperator('i', Operators.Insert);
 defineOperator('a', Operators.Append);
 defineOperator('A', Operators.AppendEndOfLine);
 defineOperator('d', Operators.DeleteTo);
+
+
+const CHAR_TO_COMMAND: { [char: string]: string; } = {};
+function defineCommand(char: string, commandId: string): void {
+	CHAR_TO_COMMAND[char] = commandId;
+};
+defineCommand('u', 'undo');
+defineCommand('U', 'undo');
 
 export interface IFoundOperator {
 	(controller: IController, editor:TextEditor): boolean;
@@ -61,6 +69,9 @@ export class Mappings {
 		};
 	}
 
+	public static findCommand(input: string): string {
+		return CHAR_TO_COMMAND[input] || null;
+	}
 }
 
 function _parseNumberAndString(input: string): INumberAndString {

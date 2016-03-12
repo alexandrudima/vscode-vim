@@ -106,8 +106,12 @@ class VimExt {
 	}
 
 	public type(text: string): void {
-		if (vscode.window.activeTextEditor && this._controller.type(vscode.window.activeTextEditor, text)) {
+		let r = this._controller.type(vscode.window.activeTextEditor, text);
+		if (r.hasConsumedInput) {
 			this._ensureState();
+			if (r.executeEditorCommand) {
+				vscode.commands.executeCommand(r.executeEditorCommand);
+			}
 			return;
 		}
 		vscode.commands.executeCommand('default:type', {

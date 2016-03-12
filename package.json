@@ -17,12 +17,17 @@
 	"contributes": {
 		"keybindings": [{
 			"command": "vim.goToNormalMode",
-			"key": "Escape",
+			"key": "escape",
 			"when": "editorTextFocus && !vim.inNormalMode"
 		},{
 			"command": "vim.clearInput",
-			"key": "Escape",
+			"key": "escape",
 			"when": "editorTextFocus && vim.hasInput"
+		},{
+			"command": "redo",
+			"key": "ctrl+r",
+			"mac": "cmd+r",
+			"when": "editorTextFocus"
 		}]
 	},
 	"scripts": {

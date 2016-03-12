@@ -17,8 +17,9 @@ import {MotionState, Motion} from './motions';
 import {Mode, IController} from './common';
 import {Mappings} from './mappings';
 
-export interface IDriver {
-	getActiveTextEditor(): TextEditor;
+export interface ITypeResult {
+	hasConsumedInput: boolean;
+	executeEditorCommand: string;
 }
 
 export class Controller implements IController {
@@ -100,13 +101,15 @@ export class Controller implements IController {
 		}
 	}
 
-	public type(editor: TextEditor, text: string): boolean {
+	public type(editor: TextEditor, text: string): ITypeResult {
 		if (this._currentMode !== Mode.NORMAL) {
-			return false;
+			return {
+				hasConsumedInput: false,
+				executeEditorCommand: null
+			};
 		}
 		this._currentInput += text;
-		this._interpretNormalModeInput(editor);
-		return true;
+		return this._interpretNormalModeInput(editor);
 	}
 
 	public replacePrevChar(text: string, replaceCharCnt: number): boolean {
@@ -117,13 +120,24 @@ export class Controller implements IController {
 		return true;
 	}
 
-	private _interpretNormalModeInput(editor: TextEditor): void {
+	private _interpretNormalModeInput(editor: TextEditor): ITypeResult {
+		let command = Mappings.findCommand(this._currentInput);
+		if (command) {
+			return {
+				hasConsumedInput: true,
+				executeEditorCommand: command
+			};
+		}
+
 		let operator = Mappings.findOperator(this._currentInput);
 		if (operator) {
 			if (operator(this, editor)) {
 				this._currentInput = '';
 			}
-			return;
+			return {
+				hasConsumedInput: true,
+				executeEditorCommand: null
+			};
 		}
 
 		let motion = Mappings.findMotion(this._currentInput);
@@ -141,6 +155,11 @@ export class Controller implements IController {
 
 		// INVALID INPUT - beep!!
 		this._currentInput = '';
+
+		return {
+			hasConsumedInput: true,
+			executeEditorCommand: null
+		};
 	}
 }
 
