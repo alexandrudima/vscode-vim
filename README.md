@@ -1,6 +1,6 @@
 # VSCode vim sample
 
-This is an extension sample showing how vim emulation could be implemented in VS Code, starting with VS Code version 0.10.12.
+This is an extension sample showing how vim emulation could be implemented in a VS Code extension, starting with VS Code version 0.10.12.
 
 ![Screenshot](example.gif)
 
