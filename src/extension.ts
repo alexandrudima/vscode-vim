@@ -1,39 +1,13 @@
 'use strict';
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
+
 import * as vscode from 'vscode';
 
-// // this method is called when your extension is activated
-// // your extension is activated the very first time the command is executed
-// export function activate(context: vscode.ExtensionContext) {
+import {Words} from './words';
 
-// 	// Use the console to output diagnostic information (console.log) and errors (console.error)
-// 	// This line of code will only be executed once when your extension is activated
-// 	console.log('Congratulations, your extension "vim" is now active!');
+export function deactivate() {
+}
 
-// 	// The command has been defined in the package.json file
-// 	// Now provide the implementation of the command with  registerCommand
-// 	// The commandId parameter must match the command field in package.json
-// 	let disposable = vscode.commands.registerCommand('extension.sayHello', () => {
-// 		// The code you place here will be executed every time your command is executed
-
-// 		// Display a message box to the user
-// 		vscode.window.showInformationMessage('Hello World!');
-// 	});
-
-// 	context.subscriptions.push(disposable);
-// }
-
-// // this method is called when your extension is deactivated
-// export function deactivate() {
-// }
-
-
-// <reference path="../../../../../Alex/src/vscode/src/vs/vscode.d.ts" />
-
-// var vscode = require('vscode');
-
-exports.activate = function() {
+export function activate(context: vscode.ExtensionContext) {
 	console.log('I am activated!');
 	
 	vscode.commands.registerCommand('type', function(args) {
@@ -64,9 +38,6 @@ exports.activate = function() {
 
 var NORMAL_MODE = 0, INSERT_MODE = 1;
 
-var CHARACTER_CLASS_REGULAR = 0;
-var CHARACTER_CLASS_WORD_SEPARATOR = 1;
-var CHARACTER_CLASS_WHITESPACE = 2;
 
 function InputHandler() {
 	this._setMode(NORMAL_MODE);
@@ -112,19 +83,7 @@ InputHandler.prototype._readConfig = function() {
 	var editorConfig = vscode.workspace.getConfiguration('editor');
 	var wordSeparators = editorConfig.wordSeparators;
 	
-	this.wordCharacterClass = [];
-	
-	// Make array fast for ASCII text
-	for (var chCode = 0; chCode < 256; chCode++) {
-		this.wordCharacterClass[chCode] = CHARACTER_CLASS_REGULAR;
-	}
-
-	for (var i = 0, len = wordSeparators.length; i < len; i++) {
-		this.wordCharacterClass[wordSeparators.charCodeAt(i)] = CHARACTER_CLASS_WORD_SEPARATOR;
-	}
-
-	this.wordCharacterClass[' '.charCodeAt(0)] = CHARACTER_CLASS_WHITESPACE;
-	this.wordCharacterClass['\t'.charCodeAt(0)] = CHARACTER_CLASS_WHITESPACE;
+	this.wordCharacterClass = Words.createWordCharacters(wordSeparators);
 };
 InputHandler.prototype.goToNormalMode = function() {
 	if (this._currentMode === NORMAL_MODE) {
@@ -451,7 +410,7 @@ InputHandler.prototype._motion_w = function(pos) {
 		return ((pos.line + 1 < doc.lineCount) ? new vscode.Position(pos.line + 1, 0) : pos);
 	}
 	
-	var nextWord = findNextWord(pos, this.wordCharacterClass);
+	var nextWord = Words.findNextWord(activeDocument(), pos, this.wordCharacterClass);
 	
 	if (!nextWord) {
 		// return end of the line
@@ -460,7 +419,7 @@ InputHandler.prototype._motion_w = function(pos) {
 	
 	if (nextWord.start <= pos.character && pos.character < nextWord.end) {
 		// Sitting on a word
-		var nextNextWord = findNextWord(new vscode.Position(pos.line, nextWord.end), this.wordCharacterClass);
+		var nextNextWord = Words.findNextWord(activeDocument(), new vscode.Position(pos.line, nextWord.end), this.wordCharacterClass);
 		if (nextNextWord) {
 			// return start of the next next word
 			return new vscode.Position(pos.line, nextNextWord.start);
@@ -483,7 +442,7 @@ InputHandler.prototype._motion_e = function(pos) {
 		return ((pos.line + 1 < doc.lineCount) ? new vscode.Position(pos.line + 1, 0) : pos);
 	}
 	
-	var nextWord = findNextWord(pos, this.wordCharacterClass);
+	var nextWord = Words.findNextWord(activeDocument(), pos, this.wordCharacterClass);
 	
 	if (!nextWord) {
 		// return end of the line
@@ -494,64 +453,6 @@ InputHandler.prototype._motion_e = function(pos) {
 	return new vscode.Position(pos.line, nextWord.end);
 };
 
-var WORD_NONE = 0, WORD_SEPARATOR = 1, WORD_REGULAR = 2;
-function findNextWord(pos, wordCharacterClass) {
-	var doc = activeDocument();
-	
-	var lineContent = doc.lineAt(pos.line).text;
-	var wordType = WORD_NONE;
-	var len = lineContent.length;
-	
-	for (var chIndex = pos.character; chIndex < len; chIndex++) {
-		var chCode = lineContent.charCodeAt(chIndex);
-		var chClass = (wordCharacterClass[chCode] || CHARACTER_CLASS_REGULAR);
-		
-		if (chClass === CHARACTER_CLASS_REGULAR) {
-			if (wordType === WORD_SEPARATOR) {
-				return _createWord(lineContent, wordType, _findStartOfWord(lineContent, wordCharacterClass, wordType, chIndex - 1), chIndex);
-			}
-			wordType = WORD_REGULAR;
-		} else if (chClass === CHARACTER_CLASS_WORD_SEPARATOR) {
-			if (wordType === WORD_REGULAR) {
-				return _createWord(lineContent, wordType, _findStartOfWord(lineContent, wordCharacterClass, wordType, chIndex - 1), chIndex);
-			}
-			wordType = WORD_SEPARATOR;
-		} else if (chClass === CHARACTER_CLASS_WHITESPACE) {
-			if (wordType !== WORD_NONE) {
-				return _createWord(lineContent, wordType, _findStartOfWord(lineContent, wordCharacterClass, wordType, chIndex - 1), chIndex);
-			}
-		}
-	}
-
-	if (wordType !== WORD_NONE) {
-		return _createWord(lineContent, wordType, _findStartOfWord(lineContent, wordCharacterClass, wordType, len - 1), len);
-	}
-
-	return null;
-}
-
-function _findStartOfWord(lineContent, wordCharacterClass, wordType, startIndex) {
-	for (var chIndex = startIndex; chIndex >= 0; chIndex--) {
-		var chCode = lineContent.charCodeAt(chIndex);
-		var chClass = (wordCharacterClass[chCode] || CHARACTER_CLASS_REGULAR);
-
-		if (chClass === CHARACTER_CLASS_WHITESPACE) {
-			return chIndex + 1;
-		}
-		if (wordType === WORD_REGULAR && chClass === CHARACTER_CLASS_WORD_SEPARATOR) {
-			return chIndex + 1;
-		}
-		if (wordType === WORD_SEPARATOR && chClass === CHARACTER_CLASS_REGULAR) {
-			return chIndex + 1;
-		}
-	}
-	return 0;
-}
-
-function _createWord(lineContent, wordType, start, end) {
-	// console.log('WORD ==> ' + start + ' => ' + end + ':::: <<<' + lineContent.substring(start, end) + '>>>');
-	return { start: start, end: end, wordType: wordType };
-}
 
 var _statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
 _statusBar.show();
