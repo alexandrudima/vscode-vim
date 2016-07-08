@@ -145,7 +145,7 @@ class VimExt {
 			this._ensureState();
 			return;
 		}
-		vscode.commands.executeCommand('default:replacePrevChar', {
+		vscode.commands.executeCommand('default:replacePreviousChar', {
 			text: text,
 			replaceCharCnt: replaceCharCnt
 		});
