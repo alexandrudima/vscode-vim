@@ -32,6 +32,18 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 		vimExt.replacePrevChar(args.text, args.replaceCharCnt);
 	});
+	registerCommandNice('compositionStart', function(args) {
+		if (!vscode.window.activeTextEditor) {
+			return;
+		}
+		vimExt.compositionStart();
+	});
+	registerCommandNice('compositionEnd', function(args) {
+		if (!vscode.window.activeTextEditor) {
+			return;
+		}
+		vimExt.compositionEnd();
+	});
 	registerCommandNice('vim.goToNormalMode', function(args) {
 		vimExt.goToNormalMode();
 	});
@@ -149,6 +161,20 @@ class VimExt {
 			text: text,
 			replaceCharCnt: replaceCharCnt
 		});
+	}
+
+	public compositionStart(): void {
+		this._controller.compositionStart(vscode.window.activeTextEditor);
+	}
+
+	public compositionEnd(): void {
+		let r = this._controller.compositionEnd(vscode.window.activeTextEditor);
+		if (r.hasConsumedInput) {
+			this._ensureState();
+			if (r.executeEditorCommand) {
+				vscode.commands.executeCommand(r.executeEditorCommand);
+			}
+		}
 	}
 
 	private _ensureState(): void {
